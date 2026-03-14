@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+@theme {
+  /* Warm teal (emerald を上書き) */
+  --color-emerald-50:  #EDF6F4;
+  --color-emerald-100: #D5EDEA;
+  --color-emerald-200: #AADBD5;
+  --color-emerald-300: #7FCAC2;
+  --color-emerald-400: #55B9AF;
+  --color-emerald-500: #47A39A;
+  --color-emerald-600: #3D8F85;
+  --color-emerald-700: #2E6E66;
+  --color-emerald-800: #1E4E48;
+
+  /* Muted rose (harsh red を和らげる) */
+  --color-red-50:  #FAF0F0;
+  --color-red-100: #F5DDDD;
+  --color-red-400: #D48080;
+  --color-red-500: #C26B6B;
+  --color-red-600: #B05A5A;
+
+  /* Warm amber */
+  --color-amber-50:  #FBF7EC;
+  --color-amber-100: #F5E9C7;
+  --color-amber-200: #ECDA9A;
+  --color-amber-400: #DDB85A;
+  --color-amber-600: #C49A2A;
+  --color-amber-700: #956E10;
+  --color-amber-800: #7A5C10;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #E8E8E3;
+  font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100svh;
+  background: #FAFAF7;
+  position: relative;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.14);
+}
+
+/* ─── ページ遷移アニメーション ─────────────────────── */
+@keyframes pageSlideUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.99); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+.page-enter {
+  animation: pageSlideUp 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+/* ─── 方向付きスワイプアニメーション ──────────────── */
+@keyframes slideFromRight {
+  from { transform: translateX(30px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes slideFromLeft {
+  from { transform: translateX(-30px); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+.page-enter-from-right {
+  animation: slideFromRight 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+.page-enter-from-left {
+  animation: slideFromLeft 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+/* ─── ボトムシート（モーダル）────────────────────────── */
+@keyframes sheetSlideUp {
+  from { transform: translateY(110%); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes backdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.sheet-enter {
+  animation: sheetSlideUp 0.38s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.backdrop-enter {
+  animation: backdropIn 0.22s ease both;
+}
+
+/* ─── ボタン共通：タップフィードバック ───────────────── */
+/* ─── iOS zoom 防止：16px未満のinputでiOSが自動ズームする ── */
+input, textarea, select {
+  font-size: 16px;
+}
+
+button, a {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform      0.12s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background-color 0.15s ease,
+    color          0.15s ease,
+    opacity        0.15s ease,
+    box-shadow     0.15s ease;
+}
+
+button:not([disabled]):active {
+  transform: scale(0.955);
+}
+
+/* プライマリボタンは少し強めの押し込み感 */
+.btn-primary:not([disabled]):active {
+  transform: scale(0.945);
+  box-shadow: 0 1px 4px rgba(61, 143, 133, 0.25) !important;
+}
+
+/* アイコンボタンは円形に押し込まれる感 */
+.btn-icon:active {
+  transform: scale(0.88);
+}
