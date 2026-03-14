@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { AnimatePresence, MotionConfig } from 'motion/react'
 import { useProfileStore } from './stores/useProfileStore'
+import { useNavStore } from './stores/useNavStore'
+import { useDirectionSync } from './hooks/useDirectionSync'
 import { resumePendingChecks } from './services/notifications/GutCheckNotifier'
 import { db } from './db/schema'
 import { toDateStr } from './utils/date'
 import GutFeedbackModal from './components/GutFeedbackModal'
+import AnimationErrorBoundary from './components/AnimationErrorBoundary'
+import PageWrapper from './components/PageWrapper'
 import OnboardingPage from './features/onboarding/OnboardingPage'
 import HomePage from './features/home/HomePage'
 import MealsPage from './features/meals/MealsPage'
@@ -13,10 +18,9 @@ import ChatPage from './features/chat/ChatPage'
 import SettingsPage from './features/settings/SettingsPage'
 import type { Meal, GutFeedback } from './types/entities'
 
-function AnimatedRoutes() {
-  const location = useLocation()
+function FallbackRoutes() {
   return (
-    <Routes location={location} key={location.pathname}>
+    <Routes>
       <Route path="/"         element={<HomePage />} />
       <Route path="/meals"    element={<MealsPage />} />
       <Route path="/weight"   element={<WeightPage />} />
@@ -27,22 +31,41 @@ function AnimatedRoutes() {
   )
 }
 
+function AnimatedRoutes() {
+  const location = useLocation()
+  const direction = useNavStore((s) => s.direction)
+
+  useDirectionSync()
+
+  return (
+    <AnimatePresence mode="wait" custom={direction} initial={false}>
+      <Routes location={location} key={location.pathname}>
+        <Route path="/"         element={<PageWrapper><HomePage /></PageWrapper>} />
+        <Route path="/meals"    element={<PageWrapper><MealsPage /></PageWrapper>} />
+        <Route path="/weight"   element={<PageWrapper><WeightPage /></PageWrapper>} />
+        <Route path="/chat"     element={<PageWrapper><ChatPage /></PageWrapper>} />
+        <Route path="/settings" element={<PageWrapper><SettingsPage /></PageWrapper>} />
+        <Route path="*"         element={<Navigate to="/" replace />} />
+      </Routes>
+    </AnimatePresence>
+  )
+}
+
 export default function App() {
   const { profile, isLoading, load } = useProfileStore()
   const [notifMeal, setNotifMeal] = useState<Meal | null>(null)
 
   useEffect(() => { load(); resumePendingChecks() }, [])
 
-  // 通知モード：アプリ起動時に未回答の食事があれば確認
   useEffect(() => {
     if (!profile) return
     const timing = profile.gutCheckTiming ?? 'both'
     if (timing !== 'notification' && timing !== 'both') return
 
     const check = async () => {
-      const now = Date.now()
-      const minAge = 30 * 60 * 1000   // 最低30分経過した食事
-      const meals = await db.meals.where('date').equals(toDateStr()).toArray()
+      const now    = Date.now()
+      const minAge = 30 * 60 * 1000
+      const meals  = await db.meals.where('date').equals(toDateStr()).toArray()
       const candidate = meals
         .filter(m => !m.gutFeedback)
         .filter(m => {
@@ -77,16 +100,23 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter>
-      <AnimatedRoutes />
-      {/* 通知モード：起動時フィードバックモーダル */}
-      {notifMeal && (
-        <GutFeedbackModal
-          meal={notifMeal}
-          onSubmit={handleNotifFeedback}
-          onSkip={() => setNotifMeal(null)}
-        />
-      )}
-    </BrowserRouter>
+    <MotionConfig reducedMotion="user">
+      <BrowserRouter>
+        {/* ページ遷移コンテナ: 相対位置で PageWrapper の absolute を受け止める */}
+        <div className="relative h-svh overflow-hidden max-w-[480px] mx-auto">
+          <AnimationErrorBoundary fallback={<FallbackRoutes />}>
+            <AnimatedRoutes />
+          </AnimationErrorBoundary>
+        </div>
+
+        {notifMeal && (
+          <GutFeedbackModal
+            meal={notifMeal}
+            onSubmit={handleNotifFeedback}
+            onSkip={() => setNotifMeal(null)}
+          />
+        )}
+      </BrowserRouter>
+    </MotionConfig>
   )
 }
