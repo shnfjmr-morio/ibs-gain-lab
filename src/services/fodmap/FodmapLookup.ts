@@ -108,23 +108,22 @@ export function lookupAllFodmap(description: string): LookupResult[] {
     }
   }
 
-  // DBでヒットしない場合、dishAliasesでフォールバック
-  if (results.length === 0) {
-    const normalizedDesc = normalizeText(description)
-    for (const alias of DISH_ALIASES) {
-      const matched = alias.keywords.some((kw: string) => normalizedDesc.includes(normalizeText(kw)))
-      if (matched) {
-        // 構成食材でDBを再検索（1段のみ・再帰しない）
-        for (const component of alias.components) {
-          const componentResults = lookupAllFodmap(component)
-          for (const r of componentResults) {
-            if (!results.find(existing => existing.entry.id === r.entry.id)) {
-              results.push(r)
-            }
+  // dishAliasesで追加展開（直接ヒットの有無に関わらず常に実行）
+  // 例: "豚丼 温泉卵" → 温泉卵が直接ヒットしても豚丼エイリアスも展開する
+  const normalizedDesc = normalizeText(description)
+  for (const alias of DISH_ALIASES) {
+    const matched = alias.keywords.some((kw: string) => normalizedDesc.includes(normalizeText(kw)))
+    if (matched) {
+      // 構成食材でDBを再検索（1段のみ・再帰しない）
+      for (const component of alias.components) {
+        const componentResults = lookupAllFodmap(component)
+        for (const r of componentResults) {
+          if (!results.find(existing => existing.entry.id === r.entry.id)) {
+            results.push(r)
           }
         }
-        break // 最初にマッチしたエイリアスのみ使用
       }
+      break // 最初にマッチしたエイリアスのみ使用
     }
   }
 

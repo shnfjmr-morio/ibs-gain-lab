@@ -1276,6 +1276,8 @@ export const FODMAP_DB: FodmapEntry[] = [
     "nameJa": "豚ロース",
     "nameEn": "Pork loin",
     "keywords": [
+      "豚肉",
+      "ぶたにく",
       "豚ロース",
       "Pork loin",
       "豚ロース肉",
