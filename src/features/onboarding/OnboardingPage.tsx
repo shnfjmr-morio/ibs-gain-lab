@@ -51,7 +51,8 @@ export default function OnboardingPage({ onComplete }: Props) {
     onComplete()
   }
 
-  const inputCls = 'w-full bg-white/8 border border-white/15 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-emerald-400 text-base'
+  const inputCls = 'w-full border rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-400 text-base'
+  const inputStyle = { backgroundColor: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.20)' }
   const labelCls = 'text-xs text-emerald-200/70 mb-1.5 block'
 
   const IBS_TYPES: IBSType[] = ['IBS-D', 'IBS-C', 'IBS-M', 'IBS-U']
@@ -108,17 +109,17 @@ export default function OnboardingPage({ onComplete }: Props) {
 
                 <div>
                   <label className={labelCls}>{t('settings.name')}</label>
-                  <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder={lang === 'ja' ? '山田太郎' : 'John Doe'} className={inputCls} />
+                  <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder={lang === 'ja' ? '山田太郎' : 'John Doe'} className={inputCls} style={inputStyle} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={labelCls}>{t('settings.age')}</label>
-                    <input type="number" value={age} onChange={e => setAge(e.target.value)} placeholder="28" className={inputCls} />
+                    <input type="number" value={age} onChange={e => setAge(e.target.value)} placeholder="28" className={inputCls} style={inputStyle} />
                   </div>
                   <div>
                     <label className={labelCls}>{t('settings.height')}</label>
-                    <input type="number" step="0.1" value={heightCm} onChange={e => setHeightCm(e.target.value)} placeholder="170" className={inputCls} />
+                    <input type="number" step="0.1" value={heightCm} onChange={e => setHeightCm(e.target.value)} placeholder="170" className={inputCls} style={inputStyle} />
                   </div>
                 </div>
               </>
@@ -169,15 +170,15 @@ export default function OnboardingPage({ onComplete }: Props) {
                 <div className="space-y-4">
                   <div>
                     <label className={labelCls}>{t('settings.current_weight')}</label>
-                    <input type="number" step="0.1" value={currentWeightKg} onChange={e => setCurrentWeightKg(e.target.value)} placeholder="52.0" className={inputCls} />
+                    <input type="number" step="0.1" value={currentWeightKg} onChange={e => setCurrentWeightKg(e.target.value)} placeholder="52.0" className={inputCls} style={inputStyle} />
                   </div>
                   <div>
                     <label className={labelCls}>{t('settings.target_weight')}</label>
-                    <input type="number" step="0.1" value={targetWeightKg} onChange={e => setTargetWeightKg(e.target.value)} placeholder="57.0" className={inputCls} />
+                    <input type="number" step="0.1" value={targetWeightKg} onChange={e => setTargetWeightKg(e.target.value)} placeholder="57.0" className={inputCls} style={inputStyle} />
                   </div>
                   <div>
                     <label className={labelCls}>{t('settings.target_calories')}</label>
-                    <input type="number" value={targetDailyCalories} onChange={e => setTargetDailyCalories(e.target.value)} className={inputCls} />
+                    <input type="number" value={targetDailyCalories} onChange={e => setTargetDailyCalories(e.target.value)} className={inputCls} style={inputStyle} />
                     <p className="text-xs text-white/30 mt-1">{lang === 'ja' ? '増量には現在の消費カロリー+300〜500kcalが目安です' : 'Aim for +300–500kcal above your maintenance calories'}</p>
                   </div>
                 </div>
@@ -209,7 +210,7 @@ export default function OnboardingPage({ onComplete }: Props) {
                   <div className="relative">
                     <input type={showKey ? 'text' : 'password'} value={claudeApiKey}
                       onChange={e => setClaudeApiKey(e.target.value)}
-                      placeholder="sk-ant-..." className={inputCls + ' pr-10'} />
+                      placeholder="sk-ant-..." className={inputCls + ' pr-10'} style={inputStyle} />
                     <button onClick={() => setShowKey(!showKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40">
                       {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -217,11 +218,11 @@ export default function OnboardingPage({ onComplete }: Props) {
                 )}
                 {aiProvider === 'openai' && (
                   <input type="password" value={openaiApiKey} onChange={e => setOpenaiApiKey(e.target.value)}
-                    placeholder="sk-..." className={inputCls} />
+                    placeholder="sk-..." className={inputCls} style={inputStyle} />
                 )}
                 {aiProvider === 'gemini' && (
                   <input type="password" value={geminiApiKey} onChange={e => setGeminiApiKey(e.target.value)}
-                    placeholder="AIza..." className={inputCls} />
+                    placeholder="AIza..." className={inputCls} style={inputStyle} />
                 )}
 
                 <p className="text-xs text-white/25">
