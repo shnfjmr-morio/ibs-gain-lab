@@ -66,6 +66,46 @@ export function lookupFodmap(description: string): LookupResult | null {
 }
 
 /**
+ * FODMAPDBのみを検索する内部関数（dishAliases展開なし）。
+ * lookupAllFodmap からコンポーネント検索時に呼び出し、無限再帰を防ぐ。
+ */
+function lookupDbOnly(keyword: string): LookupResult[] {
+  const text = normalizeText(keyword)
+  if (!text) return []
+
+  const candidates: Array<{ entry: FodmapEntry; keyword: string; start: number; end: number }> = []
+
+  for (const entry of FODMAP_DB) {
+    let best: { keyword: string; start: number; end: number } | null = null
+    for (const kw of (entry.keywords ?? [])) {
+      const kwNorm = normalizeText(kw)
+      const idx = text.indexOf(kwNorm)
+      if (idx !== -1) {
+        if (!best || kwNorm.length > best.end - best.start) {
+          best = { keyword: kw, start: idx, end: idx + kwNorm.length }
+        }
+      }
+    }
+    if (best) candidates.push({ entry, ...best })
+  }
+
+  candidates.sort((a, b) => (b.end - b.start) - (a.end - a.start))
+
+  const results: LookupResult[] = []
+  const used: Array<{ start: number; end: number }> = []
+
+  for (const c of candidates) {
+    const overlaps = used.some(r => c.start < r.end && c.end > r.start)
+    if (!overlaps) {
+      results.push({ entry: c.entry, matchedKeyword: c.keyword })
+      used.push({ start: c.start, end: c.end })
+    }
+  }
+
+  return results
+}
+
+/**
  * 全マッチ（複数食材）を返す。
  * 長いキーワードを優先し、重複範囲を除外（最長一致・非重複）。
  * 例：「ゆで卵」が「卵」より長いため「生卵」の誤マッチを防ぐ。
@@ -115,9 +155,9 @@ export function lookupAllFodmap(description: string): LookupResult[] {
   for (const alias of DISH_ALIASES) {
     const matched = alias.keywords.some((kw: string) => normalizedDesc.includes(normalizeText(kw)))
     if (matched) {
-      // 構成食材でDBを再検索（1段のみ・再帰しない）
+      // 構成食材でDBを検索（lookupDbOnlyで1段のみ・再帰しない）
       for (const component of alias.components) {
-        const componentResults = lookupAllFodmap(component)
+        const componentResults = lookupDbOnly(component)
         for (const r of componentResults) {
           if (!results.find(existing => existing.entry.id === r.entry.id)) {
             results.push(r)
