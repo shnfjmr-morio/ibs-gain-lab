@@ -7487,7 +7487,7 @@ export const FODMAP_DB: FodmapEntry[] = [
     "fatPer100g": 1,
     "carbsPer100g": 85,
     "fodmapCategory": "none",
-    "defaultServingG": 100,
+    "defaultServingG": 30,
     "safeServingG": 50,
     "noteJa": "米原料のため安全",
     "noteEn": "Safe, made from rice"

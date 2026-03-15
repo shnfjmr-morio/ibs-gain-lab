@@ -148,12 +148,22 @@ export function lookupAllFodmap(description: string): LookupResult[] {
     }
   }
 
-  // dishAliasesで追加展開（直接ヒットの有無に関わらず常に実行）
-  // 例: "豚丼 温泉卵" → 温泉卵が直接ヒットしても豚丼エイリアスも展開する
-  // マッチした全エイリアスを展開（breakを削除し複数料理名に対応）
+  // dishAliasesで追加展開
+  // aliasキーワードのテキスト範囲がすでにDB直接検索でカバー済みの場合はスキップ
+  // 例: "親子丼" → DBに直接エントリがあるためalias展開をスキップ（二重表示防止）
+  // 例: "豚丼" → DBに直接エントリがないためalias展開を実行
   const normalizedDesc = normalizeText(description)
   for (const alias of DISH_ALIASES) {
-    const matched = alias.keywords.some((kw: string) => normalizedDesc.includes(normalizeText(kw)))
+    const matched = alias.keywords.some((kw: string) => {
+      const kwNorm = normalizeText(kw)
+      const idx = normalizedDesc.indexOf(kwNorm)
+      if (idx === -1) return false
+      // このaliasキーワードのテキスト範囲がすでにDB直接検索でカバーされているかチェック
+      const kwEnd = idx + kwNorm.length
+      const alreadyCovered = used.some(r => idx >= r.start && kwEnd <= r.end)
+      if (alreadyCovered) return false  // DB直接ヒット済み → alias不要
+      return true
+    })
     if (matched) {
       // 構成食材でDBを検索（lookupDbOnlyで1段のみ・再帰しない）
       for (const component of alias.components) {

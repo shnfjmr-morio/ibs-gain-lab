@@ -26,7 +26,7 @@ const DEFAULT_PROFILE: UserProfile = {
   safeFoods: [],
   avoidFoods: [],
   language: 'ja',
-  gutCheckTiming: 'both',
+  gutCheckTiming: 'next_meal',
   claudeApiKey: '',
   aiProvider: 'claude' as const,
   openaiApiKey: '',
