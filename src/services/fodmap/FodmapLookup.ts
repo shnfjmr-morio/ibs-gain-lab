@@ -110,6 +110,7 @@ export function lookupAllFodmap(description: string): LookupResult[] {
 
   // dishAliasesで追加展開（直接ヒットの有無に関わらず常に実行）
   // 例: "豚丼 温泉卵" → 温泉卵が直接ヒットしても豚丼エイリアスも展開する
+  // マッチした全エイリアスを展開（breakを削除し複数料理名に対応）
   const normalizedDesc = normalizeText(description)
   for (const alias of DISH_ALIASES) {
     const matched = alias.keywords.some((kw: string) => normalizedDesc.includes(normalizeText(kw)))
@@ -123,7 +124,7 @@ export function lookupAllFodmap(description: string): LookupResult[] {
           }
         }
       }
-      break // 最初にマッチしたエイリアスのみ使用
+      // breakを削除: 複数のdishAliasがマッチする場合に全て展開する
     }
   }
 

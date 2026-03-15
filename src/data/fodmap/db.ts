@@ -564,6 +564,8 @@ export const FODMAP_DB: FodmapEntry[] = [
       "パン",
       "しょくぱん",
       "トースト",
+      "バンズ",
+      "ばんず",
       "white bread",
       "toast"
     ],
@@ -1065,6 +1067,8 @@ export const FODMAP_DB: FodmapEntry[] = [
       "むね肉",
       "胸肉",
       "チキン",
+      "鶏肉",
+      "とりにく",
       "chicken breast",
       "chicken"
     ],
@@ -1451,6 +1455,8 @@ export const FODMAP_DB: FodmapEntry[] = [
       "サーロイン",
       "ぎゅうろーす",
       "ビーフ",
+      "牛肉",
+      "ぎゅうにく",
       "beef loin",
       "sirloin"
     ],
@@ -2592,6 +2598,9 @@ export const FODMAP_DB: FodmapEntry[] = [
       "えび",
       "海老",
       "シュリンプ",
+      "えび天",
+      "えびてん",
+      "エビ天",
       "shrimp",
       "prawn"
     ],
@@ -3198,6 +3207,7 @@ export const FODMAP_DB: FodmapEntry[] = [
       "Boiled soybeans",
       "だいず",
       "大豆水煮",
+      "大豆",
       "節分豆",
       "soybeans"
     ],
@@ -3597,6 +3607,8 @@ export const FODMAP_DB: FodmapEntry[] = [
       "ゴーダチーズ",
       "Gouda cheese",
       "ごーだ",
+      "チーズ",
+      "ちーず",
       "gouda"
     ],
     "fodmapLevel": "low",
@@ -6963,6 +6975,8 @@ export const FODMAP_DB: FodmapEntry[] = [
       "焼き魚定食",
       "Grilled fish set meal",
       "やきざかな定食",
+      "焼き魚",
+      "やきざかな",
       "鯖の塩焼き定食",
       "grilled fish set"
     ],
@@ -13831,6 +13845,7 @@ export const FODMAP_DB: FodmapEntry[] = [
       "こんにゃく",
       "糸ごんにゃく",
       "白滝",
+      "しらたき",
       "oden konnyaku"
     ],
     "fodmapLevel": "low",
