@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { Plus, Mic, MicOff, Sparkles, ChevronRight, ChevronLeft, Pencil, Trash2 } from 'lucide-react'
@@ -8,7 +9,7 @@ import { BottomSheet } from '../../components/ui/BottomSheet'
 import { useProfileStore } from '../../stores/useProfileStore'
 import { db } from '../../db/schema'
 import { analyzeMeal } from '../../services/ai/ClaudeService'
-import { lookupFodmap } from '../../services/fodmap/FodmapLookup'
+import { lookupAllFodmap, type LookupResult } from '../../services/fodmap/FodmapLookup'
 import { estimateNutrition } from '../../services/fodmap/NutritionEstimator'
 import { recalculateDailyLog } from '../../services/dailyLog/DailyLogService'
 import { scheduleGutCheck, requestNotificationPermission } from '../../services/notifications/GutCheckNotifier'
@@ -16,6 +17,9 @@ import { toDateStr, toTimeStr, nowIso, uuid } from '../../utils/date'
 import { haptic } from '../../utils/haptics'
 import { listItemVariants, staggerContainer } from '../../utils/motion'
 import GutFeedbackModal from '../../components/GutFeedbackModal'
+import { GutStatusButton } from '../../components/ui/GutStatusButton'
+import { EmptyState } from '../../components/ui/EmptyState'
+import { SuccessModal } from '../../components/ui/SuccessModal'
 import type { Meal, MealType, FODMAPLevel, IBSSafetyScore, GutFeedback } from '../../types/entities'
 
 type InputMode = 'text' | 'voice'
@@ -25,7 +29,7 @@ interface MealDraft {
   fodmapLevel: FODMAPLevel
   ibsSafety: IBSSafetyScore
   calories: number; protein: number; fat: number; carbs: number
-  notes: string; aiEstimated: boolean; matchedFoodName?: string
+  notes: string; aiEstimated: boolean; matchedFoodNames?: string[]
 }
 
 interface EditForm {
@@ -51,7 +55,7 @@ function formatDateLabel(dateStr: string, todayStr: string, t: (k: string) => st
   return dateStr
 }
 
-const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white'
+const inputCls = 'w-full border border-black/[0.04] rounded-2xl px-4 py-3 text-[15px] focus:outline-none focus:ring-2 focus:ring-emerald-500/50 bg-white/80 shadow-inner transition-shadow'
 
 const stepVariants = {
   initial: { opacity: 0, x: 20 },
@@ -78,6 +82,7 @@ export default function MealsPage() {
   const [mealType, setMealType]   = useState<MealType>('lunch')
   const [description, setDescription] = useState('')
   const [draft, setDraft]         = useState<MealDraft | null>(null)
+  const [matchResults, setMatchResults] = useState<LookupResult[]>([])
   const [savedMealId, setSavedMealId] = useState<string | null>(null)
   const [calories, setCalories]   = useState('')
   const [protein, setProtein]     = useState('')
@@ -87,6 +92,9 @@ export default function MealsPage() {
   const [saveError, setSaveError] = useState('')
   const [isListening, setIsListening] = useState(false)
   const recogRef = useRef<any>(null)
+
+  // ─── 目標達成モーダル ────────────────────────────────────────────
+  const [showSuccess, setShowSuccess] = useState(false)
 
   // ─── 次回食事モード ────────────────────────────────────────────
   const [pendingFeedbackMeal, setPendingFeedbackMeal] = useState<Meal | null>(null)
@@ -117,19 +125,26 @@ export default function MealsPage() {
   const handleNext = () => {
     if (!description.trim()) return
     try {
-      const result    = lookupFodmap(description)
+      const matches   = lookupAllFodmap(description)
+      setMatchResults(matches)
       const nutrition = estimateNutrition(description)
-      const newDraft: MealDraft = result
+      const riskScore = (l: FODMAPLevel) => l === 'high' ? 3 : l === 'moderate' ? 2 : 1
+      const newDraft: MealDraft = matches.length > 0
         ? {
-            fodmapLevel: result.entry.fodmapLevel,
-            ibsSafety:   result.entry.ibsSafety,
+            fodmapLevel: matches.reduce<FODMAPLevel>((worst, m) =>
+              riskScore(m.entry.fodmapLevel) > riskScore(worst) ? m.entry.fodmapLevel : worst, 'low'),
+            ibsSafety: matches.some(m => m.entry.ibsSafety === 'risky') ? 'risky'
+              : matches.some(m => m.entry.ibsSafety === 'caution') ? 'caution' : 'safe',
             calories: nutrition?.calories ?? 0,
             protein:  nutrition?.protein  ?? 0,
             fat:      nutrition?.fat      ?? 0,
             carbs:    nutrition?.carbs    ?? 0,
-            notes: (lang === 'en' ? result.entry.noteEn : result.entry.noteJa) ?? '',
+            notes: matches
+              .map(m => (lang === 'en' ? m.entry.noteEn : m.entry.noteJa) ?? '')
+              .filter(Boolean)
+              .join(' / '),
             aiEstimated: false,
-            matchedFoodName: result.entry.nameJa,
+            matchedFoodNames: matches.map(m => m.entry.nameJa),
           }
         : {
             fodmapLevel: 'moderate', ibsSafety: 'caution',
@@ -156,13 +171,7 @@ export default function MealsPage() {
     if (!profile?.claudeApiKey || !draft) return
     setAddStep('ai_analyzing'); setAiError('')
     try {
-      const raw = await analyzeMeal(description, profile)
-      const jsonMatch = raw.match(/\{[\s\S]*\}/)
-      if (!jsonMatch) throw new Error('parse error')
-      const data = JSON.parse(jsonMatch[0]) as {
-        calories: number; protein: number; fat: number; carbs: number
-        fodmapLevel: FODMAPLevel; ibsSafety: IBSSafetyScore; note: string
-      }
+      const data = await analyzeMeal(description, profile)
       setDraft({ ...draft, fodmapLevel: data.fodmapLevel, ibsSafety: data.ibsSafety,
         calories: data.calories, protein: data.protein, fat: data.fat, carbs: data.carbs,
         notes: data.note, aiEstimated: true })
@@ -220,6 +229,16 @@ export default function MealsPage() {
       await db.meals.add(meal)
       await recalculateDailyLog(viewDate)
       setSavedMealId(meal.id)
+
+      // Check calorie goal achievement
+      const log = await db.dailyLogs.where('date').equals(viewDate).first()
+      if (log && profile?.targetDailyCalories && log.totalCalories >= profile.targetDailyCalories) {
+        const prevCalories = log.totalCalories - meal.totalCalories
+        if (prevCalories < profile.targetDailyCalories) {
+          setShowSuccess(true)
+        }
+      }
+
       haptic('success')
       const timing = profile?.gutCheckTiming ?? 'both'
       if (timing === 'notification' || timing === 'both') {
@@ -254,7 +273,7 @@ export default function MealsPage() {
   }
 
   const resetAdd = () => {
-    setShowAdd(false); setDescription(''); setDraft(null)
+    setShowAdd(false); setDescription(''); setDraft(null); setMatchResults([])
     setSavedMealId(null); setAddStep('input'); setAiError('')
     setCalories(''); setProtein(''); setFat(''); setCarbs(''); setSaveError('')
   }
@@ -308,75 +327,78 @@ export default function MealsPage() {
       <div className="p-4 space-y-3">
 
         {/* 日付ナビゲーション */}
-        <div className="flex items-center justify-between bg-white rounded-2xl px-3 py-2 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04]">
+        <div className="flex items-center justify-between glass-panel rounded-2xl px-3 py-2.5 shadow-sm border border-black/[0.03]">
           <button onClick={() => setViewDate(d => offsetDate(d, -1))}
-            className="p-2 text-gray-400 rounded-xl active:scale-90 transition-transform">
+            className="p-2 text-emerald-700/70 hover:bg-emerald-50 rounded-xl active:scale-90 transition-all">
             <ChevronLeft size={20} />
           </button>
           <div className="text-center">
-            <span className="text-sm font-semibold text-gray-700">{formatDateLabel(viewDate, today, t)}</span>
-            {viewDate !== today && <p className="text-xs text-gray-400">{viewDate}</p>}
+            <span className="text-sm font-bold font-display text-gray-800 tracking-wide">{formatDateLabel(viewDate, today, t)}</span>
+            {viewDate !== today && <p className="text-[11px] font-medium text-gray-400 mt-0.5">{viewDate}</p>}
           </div>
           <button onClick={() => setViewDate(d => offsetDate(d, 1))} disabled={viewDate >= today}
-            className="p-2 text-gray-400 rounded-xl disabled:opacity-20 active:scale-90 transition-transform">
+            className="p-2 text-emerald-700/70 hover:bg-emerald-50 rounded-xl disabled:opacity-20 active:scale-90 transition-all">
             <ChevronRight size={20} />
           </button>
         </div>
 
         {/* 追加ボタン */}
         {viewDate === today && (
-          <motion.button
+          <motion.button data-motion
             onClick={handleAddClick}
             whileTap={{ scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-            className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white rounded-2xl py-3.5 font-semibold shadow-[0_4px_16px_rgba(61,143,133,0.35)]"
+            className="w-full flex items-center justify-center gap-2 bg-gradient-primary text-white rounded-[1.25rem] py-4 font-bold shadow-glow relative overflow-hidden mt-2"
           >
-            <Plus size={18} strokeWidth={2.5} />{t('meals.add')}
+            {/* Glass highlight effect overlay */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 pointer-events-none" />
+            <Plus size={20} className="relative z-10" strokeWidth={2.5} />
+            <span className="relative z-10 text-[15px] tracking-wide font-display">{t('meals.add')}</span>
           </motion.button>
         )}
 
         {/* 食事リスト */}
         {meals && meals.length > 0 ? (
-          <motion.div variants={staggerContainer} initial="initial" animate="animate" className="space-y-3">
+          <motion.div variants={staggerContainer} initial="initial" animate="animate" className="space-y-4">
             {meals.map(meal => (
               <motion.div key={meal.id} variants={listItemVariants}
-                className="bg-white rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04]">
-                <div className="flex justify-between items-start gap-2">
+                className="glass-panel rounded-3xl p-5 shadow-sm border border-black/[0.03]">
+                <div className="flex justify-between items-start gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-[10px] font-medium text-gray-400">{meal.date} {meal.time}</span>
-                      <span className="text-xs font-semibold text-gray-600">{t(`meals.type.${meal.type}`)}</span>
-                      {meal.gutFeedback && <span className="text-sm">{gutEmoji[meal.gutFeedback]}</span>}
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <span className="text-[10px] font-bold text-gray-400 font-display tracking-wider uppercase">{meal.date} {meal.time}</span>
+                      <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full font-display uppercase tracking-wider">{t(`meals.type.${meal.type}`)}</span>
+                      {meal.gutFeedback && <span className="text-sm bg-white/60 shadow-sm px-1.5 rounded-full">{gutEmoji[meal.gutFeedback]}</span>}
                     </div>
-                    <p className="text-sm text-gray-800 line-clamp-2">{meal.description}</p>
-                    {meal.notes && <p className="text-xs text-gray-400 mt-1">{meal.notes}</p>}
+                    <p className="text-[14px] font-medium text-gray-800 line-clamp-2 leading-relaxed">{meal.description}</p>
+                    {meal.notes && <p className="text-[11px] text-gray-500 mt-1.5">{meal.notes}</p>}
                   </div>
-                  <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5">
                       {meal.totalCalories > 0
-                        ? <p className="font-bold text-gray-900">{meal.totalCalories}<span className="text-xs font-normal text-gray-400 ml-0.5">kcal</span></p>
-                        : <p className="text-xs text-gray-400">–kcal</p>
+                        ? <p className="text-xl font-bold font-display text-gray-900 tracking-tight leading-none">{meal.totalCalories}<span className="text-[10px] font-medium text-gray-400 ml-0.5 uppercase tracking-wider">kcal</span></p>
+                        : <p className="text-[11px] text-gray-400 font-display uppercase tracking-widest">–kcal</p>
                       }
-                      <motion.button
+                      <motion.button data-motion
                         onClick={() => handleEditOpen(meal)}
                         whileTap={{ scale: 0.85 }}
                         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                        className="p-1.5 text-gray-300 hover:text-emerald-600 rounded-lg"
+                        className="p-1.5 text-gray-300 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
                       >
                         <Pencil size={14} />
                       </motion.button>
                     </div>
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${fodmapColor[meal.fodmapLevel]}`}>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-display tracking-widest shadow-sm border border-white/40 ${fodmapColor[meal.fodmapLevel]}`}>
                       {meal.fodmapLevel.toUpperCase()}
                     </span>
                   </div>
                 </div>
                 {meal.totalCalories > 0 && (
-                  <div className="flex gap-3 mt-2.5 text-[11px] text-gray-400 border-t border-gray-50 pt-2">
-                    <span>P {meal.totalProtein}g</span>
-                    <span>F {meal.totalFat}g</span>
-                    <span>C {meal.totalCarbs}g</span>
-                    <span className={`ml-auto font-semibold ${safetyColor[meal.ibsSafetyScore]}`}>
+                  <div className="flex items-center gap-3 mt-4 text-[11px] font-medium text-gray-500 font-display border-t border-black/[0.04] pt-3">
+                    <span>P <span className="text-gray-800 font-bold">{Math.round(meal.totalProtein * 10) / 10}g</span></span>
+                    <span>F <span className="text-gray-800 font-bold">{Math.round(meal.totalFat * 10) / 10}g</span></span>
+                    <span>C <span className="text-gray-800 font-bold">{Math.round(meal.totalCarbs * 10) / 10}g</span></span>
+                    <span className={`ml-auto font-bold uppercase tracking-wider drop-shadow-sm ${safetyColor[meal.ibsSafetyScore]}`}>
                       {t(`meals.safety.${meal.ibsSafetyScore}`)}
                     </span>
                   </div>
@@ -385,15 +407,108 @@ export default function MealsPage() {
             ))}
           </motion.div>
         ) : (
-          <div className="text-center py-16 text-gray-400 text-sm">{t('home.no_meals')}</div>
+          <EmptyState title={t('home.no_meals')} />
         )}
       </div>
 
-      {/* ══════════════ 食事追加シート ══════════════ */}
+      {/* ══════════════ 食事入力フルスクリーンオーバーレイ ══════════════ */}
+      {showAdd && addStep === 'input' && createPortal(
+        <div className="fixed inset-0 z-[200] bg-slate-50 flex flex-col overflow-hidden"
+             style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          {/* Subtle background glow */}
+          <div className="absolute top-[-5%] right-[-5%] w-72 h-72 bg-emerald-400/10 blur-[80px] rounded-full pointer-events-none" />
+          
+          {/* ヘッダー */}
+          <div className="relative z-10 flex items-center justify-between px-5 py-4 border-b border-black/[0.04] bg-white/50 backdrop-blur-md">
+            <h2 className="text-lg font-bold font-display text-gray-900 tracking-tight">{t('meals.add')}</h2>
+            <button onClick={resetAdd} className="text-sm text-gray-400 px-2 py-1">{t('common.cancel')}</button>
+          </div>
+          {/* スクロール可能コンテンツ */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {MEAL_TYPES.map(type => (
+                <button key={type} onClick={() => setMealType(type)}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${mealType === type ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                  {t(`meals.type.${type}`)}
+                </button>
+              ))}
+            </div>
+            <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
+              {(['text','voice'] as InputMode[]).map(m => (
+                <button key={m} onClick={() => setInputMode(m)} disabled={m === 'voice' && !voiceSupported}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${inputMode === m ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>
+                  {t(`meals.${m}_input`)}
+                </button>
+              ))}
+            </div>
+            {inputMode === 'text' && (
+              <div className="relative">
+                <textarea value={description} onChange={e => setDescription(e.target.value)}
+                  placeholder={t('meals.text_placeholder')} rows={4}
+                  className="w-full border border-black/[0.04] rounded-3xl px-5 py-4 text-[15px] resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/50 bg-white/80 shadow-inner transition-shadow leading-relaxed" />
+              </div>
+            )}
+            {inputMode === 'voice' && (
+              <div className="text-center space-y-3">
+                <motion.button
+                  onPointerDown={startListening} onPointerUp={stopListening}
+                  animate={isListening ? { scale: 1.1 } : { scale: 1 }}
+                  className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto shadow-lg ${isListening ? 'bg-red-500' : 'bg-emerald-600'}`}
+                >
+                  {isListening ? <MicOff size={32} className="text-white" /> : <Mic size={32} className="text-white" />}
+                </motion.button>
+                <p className="text-sm text-gray-400">{isListening ? t('meals.voice_listening') : t('meals.voice_prompt')}</p>
+                {description && <div className="bg-gray-50 rounded-xl px-3 py-2 text-sm text-gray-700 text-left">{description}</div>}
+              </div>
+            )}
+          </div>
+          {/* 固定フッター */}
+          <div className="relative z-10 px-5 py-4 border-t border-black/[0.04] bg-white/50 backdrop-blur-md">
+            <motion.button data-motion onClick={handleNext} disabled={!description.trim()}
+              whileTap={description.trim() ? { scale: 0.97 } : undefined}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-primary text-white rounded-[1.25rem] py-4 font-bold disabled:opacity-40 disabled:grayscale-[0.5] shadow-glow relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 pointer-events-none" />
+              <span className="relative z-10 font-display tracking-wide">{t('meals.next')}</span>
+              <ChevronRight size={18} className="relative z-10" />
+            </motion.button>
+          </div>
+        </div>,
+        document.getElementById('root')!
+      )}
+
+      {/* ══════════════ 食事確認・分析・通知シート ══════════════ */}
       <BottomSheet
-        open={showAdd}
+        open={showAdd && addStep !== 'input'}
         onOpenChange={(open) => { if (!open) resetAdd() }}
-        dismissible={addStep !== 'ai_analyzing'}
+        dismissible={false}
+        className="min-h-[65dvh]"
+        footer={
+          addStep === 'confirm' ? (
+            <div className="space-y-2">
+              {saveError && <p className="text-xs text-red-500 text-center bg-red-50 rounded-xl px-3 py-2">{saveError}</p>}
+              <motion.button data-motion onClick={handleSave}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                className="w-full bg-gradient-primary text-white rounded-[1.25rem] py-4 font-bold shadow-glow tracking-wide font-display relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 pointer-events-none" />
+                <span className="relative z-10">{t('meals.save')}</span>
+              </motion.button>
+              <button onClick={() => setAddStep('input')} className="w-full bg-gray-100 hover:bg-gray-200 transition-colors text-gray-700 rounded-[1.25rem] py-3.5 text-[15px] font-bold font-display">{t('common.cancel')}</button>
+            </div>
+          ) : addStep === 'notify_prompt' ? (
+            <div className="space-y-2">
+              <motion.button data-motion onClick={handleAllowNotification}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                className="w-full bg-gradient-primary text-white rounded-[1.25rem] py-4 font-bold shadow-glow tracking-wide font-display relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 pointer-events-none" />
+                <span className="relative z-10">{t('meals.notification_allow')}</span>
+              </motion.button>
+              <button onClick={resetAdd} className="w-full text-sm font-medium text-gray-400 py-2 hover:text-gray-600 transition-colors">{t('meals.notification_deny')}</button>
+            </div>
+          ) : undefined
+        }
       >
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
@@ -403,68 +518,39 @@ export default function MealsPage() {
             animate="animate"
             exit="exit"
             transition={stepTransition}
-            className="space-y-4 pb-2"
+            className="space-y-3 pb-2"
           >
-            {addStep === 'input' && (<>
-              <h2 className="text-base font-semibold text-gray-900">{t('meals.add')}</h2>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {MEAL_TYPES.map(type => (
-                  <button key={type} onClick={() => setMealType(type)}
-                    className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${mealType === type ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                    {t(`meals.type.${type}`)}
-                  </button>
-                ))}
-              </div>
-              <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
-                {(['text','voice'] as InputMode[]).map(m => (
-                  <button key={m} onClick={() => setInputMode(m)} disabled={m === 'voice' && !voiceSupported}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${inputMode === m ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>
-                    {t(`meals.${m}_input`)}
-                  </button>
-                ))}
-              </div>
-              {inputMode === 'text' && (
-                <textarea value={description} onChange={e => setDescription(e.target.value)}
-                  placeholder={t('meals.text_placeholder')} rows={3}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-              )}
-              {inputMode === 'voice' && (
-                <div className="text-center space-y-3">
-                  <motion.button
-                    onPointerDown={startListening} onPointerUp={stopListening}
-                    animate={isListening ? { scale: 1.1 } : { scale: 1 }}
-                    className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto shadow-lg ${isListening ? 'bg-red-500' : 'bg-emerald-600'}`}
-                  >
-                    {isListening ? <MicOff size={32} className="text-white" /> : <Mic size={32} className="text-white" />}
-                  </motion.button>
-                  <p className="text-sm text-gray-400">{isListening ? t('meals.voice_listening') : t('meals.voice_prompt')}</p>
-                  {description && <div className="bg-gray-50 rounded-xl px-3 py-2 text-sm text-gray-700 text-left">{description}</div>}
-                </div>
-              )}
-              <motion.button onClick={handleNext} disabled={!description.trim()}
-                whileTap={description.trim() ? { scale: 0.97 } : undefined}
-                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white rounded-2xl py-3.5 font-semibold disabled:opacity-40 shadow-[0_4px_14px_rgba(61,143,133,0.3)]">
-                {t('meals.next')}<ChevronRight size={16} />
-              </motion.button>
-            </>)}
-
             {addStep === 'confirm' && draft && (<>
               <h2 className="text-base font-semibold text-gray-900">{t('meals.confirm_title')}</h2>
               <div className="bg-gray-50 rounded-xl px-3 py-2.5 text-sm text-gray-700">{description}</div>
-              <div className="bg-white border border-gray-200 rounded-xl p-3 space-y-2">
-                {draft.matchedFoodName && <p className="text-xs text-gray-400">{t('meals.matched_food')}: <span className="font-medium text-gray-600">{draft.matchedFoodName}</span></p>}
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500">FODMAP</span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${fodmapColor[draft.fodmapLevel]}`}>{t(`meals.fodmap_level.${draft.fodmapLevel}`)}</span>
+              {matchResults.length > 0 ? (
+                <div className="space-y-2">
+                  {matchResults.map((m) => (
+                    <div key={m.entry.id} className="bg-white border border-gray-200 rounded-xl p-3 space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <p className="text-sm font-semibold text-gray-800">{m.entry.nameJa}</p>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${fodmapColor[m.entry.fodmapLevel]}`}>
+                          {t(`meals.fodmap_level.${m.entry.fodmapLevel}`)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-500">{t('meals.ibs_safety')}</span>
+                        <span className={`text-xs font-medium ${safetyColor[m.entry.ibsSafety]}`}>
+                          {t(`meals.safety.${m.entry.ibsSafety}`)}
+                        </span>
+                      </div>
+                      {(lang === 'en' ? m.entry.noteEn : m.entry.noteJa) && (
+                        <p className="text-xs text-gray-400">{lang === 'en' ? m.entry.noteEn : m.entry.noteJa}</p>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500">{t('meals.ibs_safety')}</span>
-                  <span className={`text-sm font-medium ${safetyColor[draft.ibsSafety]}`}>{t(`meals.safety.${draft.ibsSafety}`)}</span>
+              ) : (
+                <div className="bg-white border border-gray-200 rounded-xl p-3">
+                  <p className="text-xs text-gray-400">{draft.notes}</p>
                 </div>
-                {draft.notes && <p className="text-xs text-gray-400 border-t border-gray-100 pt-2">{draft.notes}</p>}
-                {draft.aiEstimated && <p className="text-xs text-emerald-600 flex items-center gap-1"><Sparkles size={10} />{t('meals.ai_estimated')}</p>}
-              </div>
+              )}
+              {draft.aiEstimated && <p className="text-xs text-emerald-600 flex items-center gap-1"><Sparkles size={10} />{t('meals.ai_estimated')}</p>}
               <div>
                 <p className="text-xs text-gray-400 mb-2">{t('meals.nutrition_optional')}</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -482,7 +568,7 @@ export default function MealsPage() {
                 </div>
               </div>
               {hasApiKey && (
-                <motion.button onClick={handleAiAnalyze}
+                <motion.button data-motion onClick={handleAiAnalyze}
                   whileTap={{ scale: 0.97 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                   className="w-full flex items-center justify-center gap-2 border border-emerald-300 text-emerald-700 rounded-xl py-2.5 text-sm font-medium bg-emerald-50">
@@ -490,16 +576,6 @@ export default function MealsPage() {
                 </motion.button>
               )}
               {aiError && <p className="text-xs text-red-500 text-center">{aiError}</p>}
-              {saveError && <p className="text-xs text-red-500 text-center bg-red-50 rounded-xl px-3 py-2">{saveError}</p>}
-              <div className="space-y-2">
-                <motion.button onClick={handleSave}
-                  whileTap={{ scale: 0.97 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                  className="w-full bg-emerald-600 text-white rounded-2xl py-3.5 font-semibold shadow-[0_4px_14px_rgba(61,143,133,0.3)]">
-                  {t('meals.save')}
-                </motion.button>
-                <button onClick={() => setAddStep('input')} className="w-full bg-gray-100 text-gray-600 rounded-2xl py-2.5 text-sm font-medium">{t('common.cancel')}</button>
-              </div>
             </>)}
 
             {addStep === 'ai_analyzing' && (
@@ -514,18 +590,9 @@ export default function MealsPage() {
             )}
 
             {addStep === 'notify_prompt' && (
-              <div className="py-6 space-y-4 text-center">
+              <div className="py-6 text-center space-y-4">
                 <p className="text-2xl">🔔</p>
                 <p className="text-base font-semibold text-gray-800">{t('meals.notification_prompt')}</p>
-                <div className="space-y-2">
-                  <motion.button onClick={handleAllowNotification}
-                    whileTap={{ scale: 0.97 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                    className="w-full bg-emerald-600 text-white rounded-2xl py-3.5 font-semibold shadow-[0_4px_14px_rgba(61,143,133,0.3)]">
-                    {t('meals.notification_allow')}
-                  </motion.button>
-                  <button onClick={resetAdd} className="w-full text-sm text-gray-400 py-1">{t('meals.notification_deny')}</button>
-                </div>
               </div>
             )}
           </motion.div>
@@ -552,9 +619,9 @@ export default function MealsPage() {
               ))}
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">{t('meals.notes')}</label>
+              <label className="text-xs font-bold text-gray-500 mb-1 block uppercase tracking-wider">{t('meals.notes')}</label>
               <textarea value={editForm.description} onChange={e => setEditForm(f => f ? { ...f, description: e.target.value } : f)}
-                rows={2} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                rows={3} className="w-full border border-black/[0.04] rounded-2xl px-4 py-3 text-[15px] resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/50 bg-white/80 shadow-inner transition-shadow leading-relaxed" />
             </div>
             <div className="grid grid-cols-2 gap-2">
               {[
@@ -584,35 +651,54 @@ export default function MealsPage() {
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-2 block">{t('meals.edit_gut')}</label>
-              <div className="grid grid-cols-4 gap-2">
-                {(['','great','ok','bad'] as const).map(v => (
-                  <button key={v} onClick={() => setEditForm(f => f ? { ...f, gutFeedback: v as GutFeedback | '' } : f)}
-                    className={`py-2.5 rounded-xl text-center text-sm transition-colors ${editForm.gutFeedback === v ? 'bg-emerald-100 ring-2 ring-emerald-400' : 'bg-gray-100'}`}>
-                    {v === '' ? '–' : gutEmoji[v as GutFeedback]}
-                  </button>
+              <div className="grid grid-cols-3 gap-2">
+                {(['great', 'ok', 'bad'] as GutFeedback[]).map(v => (
+                  <GutStatusButton
+                    key={v}
+                    value={v}
+                    isActive={editForm.gutFeedback === v}
+                    onSelect={(val) => setEditForm(f => f ? { ...f, gutFeedback: val } : f)}
+                  />
                 ))}
               </div>
+              <button
+                onClick={() => setEditForm(f => f ? { ...f, gutFeedback: '' } : f)}
+                className={`mt-2 w-full py-2 rounded-xl text-center text-sm font-medium transition-colors ${
+                  editForm.gutFeedback === '' ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-400'
+                }`}
+              >
+                {t('gut.no_record')}
+              </button>
             </div>
-            <motion.button onClick={handleEditSave}
+            <motion.button data-motion onClick={handleEditSave}
               whileTap={{ scale: 0.97 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              className="w-full bg-emerald-600 text-white rounded-2xl py-3.5 font-semibold shadow-[0_4px_14px_rgba(61,143,133,0.3)]">
-              {t('meals.edit_save')}
+              className="w-full bg-gradient-primary text-white rounded-[1.25rem] py-4 font-bold shadow-glow relative overflow-hidden tracking-wide font-display">
+              <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 pointer-events-none" />
+              <span className="relative z-10">{t('meals.edit_save')}</span>
             </motion.button>
             {!deleteConfirm ? (
               <button onClick={() => setDeleteConfirm(true)}
-                className="w-full flex items-center justify-center gap-2 text-sm text-red-400 py-2">
-                <Trash2 size={14} />{t('meals.delete')}
+                className="w-full flex items-center justify-center gap-2 text-sm font-bold text-red-400 hover:text-red-500 hover:bg-red-50 py-3 rounded-[1.25rem] transition-colors">
+                <Trash2 size={16} />{t('meals.delete')}
               </button>
             ) : (
               <div className="flex gap-2">
-                <button onClick={handleDelete} className="flex-1 bg-red-500 text-white rounded-2xl py-2.5 text-sm font-semibold">{t('meals.delete_confirm')}</button>
-                <button onClick={() => setDeleteConfirm(false)} className="flex-1 bg-gray-100 text-gray-600 rounded-2xl py-2.5 text-sm font-medium">{t('common.cancel')}</button>
+                <button onClick={handleDelete} className="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-[1.25rem] py-3.5 text-[15px] font-bold shadow-md transition-colors font-display tracking-wide">{t('meals.delete_confirm')}</button>
+                <button onClick={() => setDeleteConfirm(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-[1.25rem] py-3.5 text-[15px] font-bold transition-colors font-display tracking-wide">{t('common.cancel')}</button>
               </div>
             )}
           </div>
         )}
       </BottomSheet>
+
+      {/* 目標達成モーダル */}
+      <SuccessModal
+        open={showSuccess}
+        onClose={() => setShowSuccess(false)}
+        title={t('success.calorie_goal')}
+        description={t('success.calorie_goal_desc')}
+      />
 
       {/* 次回食事モード：前の食事フィードバック */}
       {pendingFeedbackMeal && (

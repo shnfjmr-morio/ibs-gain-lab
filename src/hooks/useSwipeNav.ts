@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useNavStore, TAB_ORDER } from '../stores/useNavStore'
+import { haptic } from '../utils/haptics'
 
 const TABS = [...TAB_ORDER]
 const MIN_SWIPE_X = 55
@@ -53,10 +54,12 @@ export function useSwipeNav() {
       const { setDirection } = useNavStore.getState()
 
       if (dx < 0 && idx < TABS.length - 1) {
+        haptic('light')
         setDirection(1)
         navigateRef.current(TABS[idx + 1])
       }
       if (dx > 0 && idx > 0) {
+        haptic('light')
         setDirection(-1)
         navigateRef.current(TABS[idx - 1])
       }

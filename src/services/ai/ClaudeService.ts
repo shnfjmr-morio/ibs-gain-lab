@@ -145,24 +145,70 @@ export async function sendMessage(
 
 // ─── 食事分析（1回限りのCall）───
 
+export interface AnalyzeMealResult {
+  calories: number
+  protein: number
+  fat: number
+  carbs: number
+  fodmapLevel: 'low' | 'moderate' | 'high'
+  ibsSafety: 'safe' | 'caution' | 'risky'
+  note: string
+}
+
+/** AIレスポンスからJSONブロックを堅牢に抽出する */
+function extractJsonFromText(text: string): string {
+  // Markdownコードブロックを除去
+  const stripped = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim()
+  // すべての {...} ブロックを取得し、最長のものを選択
+  const matches = [...stripped.matchAll(/\{[\s\S]*?\}/g)]
+  if (matches.length === 0) {
+    // フォールバック: 全体を試す
+    return stripped
+  }
+  return matches.reduce((a, b) => (a[0].length >= b[0].length ? a : b))[0]
+}
+
 export async function analyzeMeal(
   description: string,
   profile: UserProfile
-): Promise<string> {
+): Promise<AnalyzeMealResult> {
   if (!profile.claudeApiKey) throw new Error('NO_API_KEY')
 
   const client = buildClient(profile.claudeApiKey)
-  const prompt =
-    profile.language === 'en'
-      ? `Analyze this meal and return: estimated calories, protein(g), fat(g), carbs(g), FODMAP level (Low/Moderate/High), IBS safety (Safe/Caution/Risky), and a brief IBS note.\n\nMeal: ${description}\n\nFormat your response as JSON: {"calories": number, "protein": number, "fat": number, "carbs": number, "fodmapLevel": "low"|"moderate"|"high", "ibsSafety": "safe"|"caution"|"risky", "note": "string"}`
-      : `この食事を分析してください。推定カロリー、タンパク質(g)、脂質(g)、炭水化物(g)、FODMAPレベル（low/moderate/high）、IBS安全性（safe/caution/risky）、IBS向けの一言メモを返してください。\n\n食事: ${description}\n\nJSON形式で返してください: {"calories": number, "protein": number, "fat": number, "carbs": number, "fodmapLevel": "low"|"moderate"|"high", "ibsSafety": "safe"|"caution"|"risky", "note": "string"}`
+  const lang = profile.language
+
+  const systemPrompt = lang === 'en'
+    ? `You are a nutrition and IBS specialist. Analyze meals and return JSON only — no markdown, no explanation.
+User: IBS type ${profile.ibsType}, triggers: ${profile.knownTriggers.join(', ') || 'none'}, safe foods: ${profile.safeFoods.join(', ') || 'not specified'}.`
+    : `あなたは栄養とIBSの専門家です。食事を分析してJSONのみを返してください。マークダウンや説明は不要です。
+ユーザー情報: IBSタイプ ${profile.ibsType}、トリガー食品: ${profile.knownTriggers.join('、') || 'なし'}、安全食品: ${profile.safeFoods.join('、') || '未設定'}。`
+
+  const userPrompt = lang === 'en'
+    ? `Analyze this meal. Return exactly this JSON with no other text:\n{"calories": number, "protein": number, "fat": number, "carbs": number, "fodmapLevel": "low"|"moderate"|"high", "ibsSafety": "safe"|"caution"|"risky", "note": "brief IBS note"}\n\nMeal: ${description}`
+    : `この食事を分析してください。以下のJSON形式のみを返してください（他のテキスト不要）:\n{"calories": number, "protein": number, "fat": number, "carbs": number, "fodmapLevel": "low"|"moderate"|"high", "ibsSafety": "safe"|"caution"|"risky", "note": "IBS向けの一言メモ"}\n\n食事: ${description}`
 
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: 512,
-    messages: [{ role: 'user', content: prompt }],
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userPrompt }],
   })
 
   const text = response.content[0].type === 'text' ? response.content[0].text : ''
-  return text
+
+  const jsonStr = extractJsonFromText(text)
+  const data = JSON.parse(jsonStr) as Partial<AnalyzeMealResult>
+
+  // 型安全なフォールバック
+  return {
+    calories:    typeof data.calories === 'number' ? data.calories : 0,
+    protein:     typeof data.protein  === 'number' ? data.protein  : 0,
+    fat:         typeof data.fat      === 'number' ? data.fat      : 0,
+    carbs:       typeof data.carbs    === 'number' ? data.carbs    : 0,
+    fodmapLevel: (['low', 'moderate', 'high'] as const).includes(data.fodmapLevel as any)
+      ? data.fodmapLevel as AnalyzeMealResult['fodmapLevel'] : 'moderate',
+    ibsSafety:   (['safe', 'caution', 'risky'] as const).includes(data.ibsSafety as any)
+      ? data.ibsSafety as AnalyzeMealResult['ibsSafety'] : 'caution',
+    note:        typeof data.note === 'string' ? data.note : '',
+  }
 }

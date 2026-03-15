@@ -19,6 +19,44 @@ function extractWeightG(text: string): number | null {
 }
 
 /**
+ * defaultServingG の異常値を補正する。
+ * DBには誤った値（うどん15g、カレーパン400g等）が含まれるため、
+ * caloriesPer100g に基づいた妥当な1食分量を推定する。
+ *
+ * ルール:
+ * - 20g未満は異常に小さい → 推定値に置換
+ * - 400g超で高カロリー食品（>200kcal/100g）は異常に大きい → 推定値に置換
+ * - それ以外はそのまま使用
+ *
+ * 推定ロジック: 1食300-500kcal程度になるよう逆算
+ */
+function sanitizeServingG(defaultG: number | undefined, caloriesPer100g: number): number {
+  const MIN_SERVING = 20
+  const FALLBACK = 150
+
+  if (defaultG == null) return FALLBACK
+
+  // caloriesPer100gが0以下は異常データ
+  if (caloriesPer100g <= 0) return defaultG
+
+  // 異常に小さいdefaultServingG（スパイス以外で20g未満は食事として不自然）
+  // ただしcaloriesPer100gが非常に高い（>500）場合は調味料・油脂なので小さくてもOK
+  if (defaultG < MIN_SERVING && caloriesPer100g <= 500) {
+    // 1食あたり約400kcalになるよう逆算
+    const estimated = Math.round((400 / caloriesPer100g) * 100)
+    return Math.min(Math.max(estimated, 100), 400)
+  }
+
+  // 異常に大きいdefaultServingG: 高カロリー食品で400g超
+  if (defaultG > 400 && caloriesPer100g > 200) {
+    const estimated = Math.round((500 / caloriesPer100g) * 100)
+    return Math.min(Math.max(estimated, 100), 400)
+  }
+
+  return defaultG
+}
+
+/**
  * 食事テキストからマッチした全食品の栄養素を合算して推定する。
  * 各食品ごとに重量を抽出し、なければ defaultServingG（またはフォールバック値）を使用。
  */
@@ -40,11 +78,12 @@ export function estimateNutrition(description: string): NutritionEstimate | null
       // このキーワード周辺の重量を探す（前後30文字）
       const idx = text.indexOf(kw.toLowerCase())
       const surrounding = text.slice(Math.max(0, idx - 5), idx + kw.length + 15)
-      const weightG = extractWeightG(surrounding)
+      const userWeight = extractWeightG(surrounding)
         ?? extractWeightG(text)  // 全体からも探す
-        ?? (entry as any).defaultServingG
-        ?? (entry as any).safeServingG
-        ?? 150  // どれもなければ150gをフォールバック
+
+      const rawDefault = entry.defaultServingG ?? entry.safeServingG
+      const sanitizedDefault = sanitizeServingG(rawDefault, entry.caloriesPer100g)
+      const weightG = userWeight ?? sanitizedDefault
 
       const ratio = weightG / 100
       totalCalories += Math.round(entry.caloriesPer100g * ratio)
@@ -52,7 +91,7 @@ export function estimateNutrition(description: string): NutritionEstimate | null
       totalFat      += Math.round(entry.fatPer100g      * ratio * 10) / 10
       totalCarbs    += Math.round(entry.carbsPer100g    * ratio * 10) / 10
       matched++
-      if (weightG !== ((entry as any).defaultServingG ?? (entry as any).safeServingG ?? 150)) {
+      if (userWeight != null) {
         anyMeasured = true
       }
       break  // 同エントリで複数キーワードマッチしても1回だけ

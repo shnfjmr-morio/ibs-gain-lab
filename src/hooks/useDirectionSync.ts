@@ -11,14 +11,22 @@ export function useDirectionSync() {
   const prevPathRef = useRef(location.pathname)
   const computeDirection = useNavStore((s) => s.computeDirection)
   const setDirection = useNavStore((s) => s.setDirection)
+  const resetDirectionManualFlag = useNavStore((s) => s.resetDirectionManualFlag)
 
   useEffect(() => {
     const prev = prevPathRef.current
     const next = location.pathname
     if (prev !== next) {
-      const dir = computeDirection(prev, next)
-      setDirection(dir)
       prevPathRef.current = next
+      const { directionManuallySet } = useNavStore.getState()
+      if (directionManuallySet) {
+        // BottomNav/useSwipeNav が既に setDirection を呼んでいる（タブクリック・スワイプ）
+        // → 上書きせずフラグだけリセット
+        resetDirectionManualFlag()
+      } else {
+        // ブラウザバック・フォワード・ディープリンク → TAB_ORDER から方向を算出
+        setDirection(computeDirection(prev, next))
+      }
     }
-  }, [location.pathname, computeDirection, setDirection])
+  }, [location.pathname, computeDirection, setDirection, resetDirectionManualFlag])
 }

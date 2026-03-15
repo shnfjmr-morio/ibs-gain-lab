@@ -22,13 +22,18 @@ export default function AppShell({ children, title, rightAction }: Props) {
     <div className="flex flex-col h-full bg-[#FAFAF7]">
       {title && (
         <header className="shrink-0 sticky top-0 z-40
-          bg-[#FAFAF7]/80 backdrop-blur-xl
-          border-b border-white/60
-          shadow-[0_1px_0_rgba(0,0,0,0.05)]
+          bg-[#FAFAF7]/70 backdrop-blur-xl backdrop-saturate-150
+          border-b border-black/[0.03]
+          shadow-[0_4px_24px_rgba(0,0,0,0.02)]
           px-4 pt-[env(safe-area-inset-top)] pb-3
-          flex items-center justify-between"
+          flex items-center justify-between transition-colors"
         >
-          <h1 className="text-base font-semibold text-gray-800 tracking-tight">{title}</h1>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-white shadow-sm border border-black/[0.04] flex items-center justify-center p-1">
+              <img src="/assets/logo-icon.png" alt="FutoLab" className="w-full h-full object-contain mix-blend-multiply opacity-90" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+            </div>
+            <h1 className="text-[17px] font-bold text-gray-900 tracking-tight font-display">{title}</h1>
+          </div>
           {rightAction && <div>{rightAction}</div>}
         </header>
       )}

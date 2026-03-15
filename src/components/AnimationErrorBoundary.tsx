@@ -22,7 +22,7 @@ export default class AnimationErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      return this.props.fallback ?? this.props.children
+      return this.props.fallback ?? null
     }
     return this.props.children
   }

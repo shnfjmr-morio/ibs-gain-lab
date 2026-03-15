@@ -161,7 +161,8 @@
     "gut_check_timing_notification": "🔔 1時間後に通知",
     "gut_check_timing_next_meal": "🍽️ 次回食事のときに確認",
     "gut_check_timing_both": "✅ 両方（通知＋次回食事時）",
-    "gut_check_timing_help": "食後のお腹の調子を記録するタイミングを選んでください"
+    "gut_check_timing_help": "食後のお腹の調子を記録するタイミングを選んでください",
+    "unmatched_count": "{{count}}件"
   },
   "onboarding": {
     "welcome": "FutoLabへようこそ",
@@ -177,6 +178,18 @@
     "step4_desc": "AI相談機能を使うためにClaude APIキーが必要です",
     "skip_api": "あとで設定する",
     "ibs_type_desc": "診断されたIBSのタイプを選んでください"
+  },
+  "success": {
+    "calorie_goal": "カロリー目標達成!",
+    "calorie_goal_desc": "今日の目標カロリーを達成しました",
+    "weight_goal": "目標体重達成!",
+    "weight_goal_desc": "おめでとうございます！目標体重に到達しました"
+  },
+  "gut": {
+    "great": "好調",
+    "ok": "普通",
+    "bad": "不調",
+    "no_record": "記録なし"
   },
   "common": {
     "loading": "読み込み中...",

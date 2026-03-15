@@ -8,6 +8,7 @@ import { useProfileStore } from '../../stores/useProfileStore'
 import { db } from '../../db/schema'
 import { toDateStr } from '../../utils/date'
 import { APP_VERSION } from '../../config/version'
+import { EmptyState } from '../../components/ui/EmptyState'
 import type { IBSStatus, GutFeedback } from '../../types/entities'
 
 const GUT_EMOJI: Record<GutFeedback, string> = { great: '😊', ok: '😐', bad: '😟' }
@@ -48,125 +49,132 @@ export default function HomePage() {
   const calBarColor = pct >= 90 ? 'bg-emerald-500' : pct >= 60 ? 'bg-amber-400' : 'bg-red-400'
 
   return (
-    <AppShell title="FutoLab">
+    <AppShell>
       <div className="p-4 space-y-4">
 
         {/* アプリ名 + バージョン */}
-        <div className="flex items-baseline justify-between">
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">FutoLab</h1>
-          <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+        <div className="flex items-baseline justify-between px-1">
+          <h1 className="text-3xl font-display font-bold text-gray-900 tracking-tight text-gradient-primary">FutoLab</h1>
+          <span className="text-xs font-semibold text-emerald-700 bg-emerald-100/80 px-3 py-1.5 rounded-full shadow-sm">
             {APP_VERSION}
           </span>
         </div>
 
         {/* ── ヒーローカード（腸の状態 + カロリー） ───── */}
-        <div className={`rounded-3xl p-5 border shadow-[0_4px_24px_rgba(0,0,0,0.08)] ${status.bgColor} ${status.borderColor}`}>
+        <div className="relative rounded-3xl p-1 overflow-hidden shadow-glow">
+          {/* Gradient Background */}
+          <div className="absolute inset-0 bg-gradient-primary" />
+          
+          {/* Glass Overlay wrapper */}
+          <div className="relative rounded-[1.35rem] p-5 glass-panel-dark flex flex-col gap-5">
 
-          {/* 上段: 腸の状態 + 体重 */}
-          <div className="flex items-start justify-between mb-5">
-            <div>
-              <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-2">
-                {t('home.ibs_status')}
-              </p>
-              <div className="flex items-center gap-2.5">
-                <span className="text-4xl leading-none">{status.emoji}</span>
-                <span className={`text-xl font-bold ${status.textColor}`}>
-                  {t(`weight.status.${ibsStatus}`)}
-                </span>
-              </div>
-            </div>
-
-            {latestWeight ? (
-              <div className="text-right bg-white/60 rounded-2xl px-3 py-2 backdrop-blur-sm">
-                <p className="text-[10px] text-gray-500 mb-0.5">{t('home.weight')}</p>
-                <p className="text-2xl font-bold text-gray-900 leading-tight">
-                  {latestWeight.weightKg}
-                  <span className="text-sm font-normal text-gray-400 ml-0.5">kg</span>
+            {/* 上段: 腸の状態 + 体重 */}
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-[11px] font-semibold text-white/60 uppercase tracking-widest mb-1.5 font-display">
+                  {t('home.ibs_status')}
                 </p>
-                {profile?.targetWeightKg && (
-                  <p className="text-[11px] text-gray-500 mt-0.5">
-                    {t('home.goal_remaining', {
-                      diff: (profile.targetWeightKg - latestWeight.weightKg).toFixed(1),
-                    })}
+                <div className="flex items-center gap-2.5">
+                  <span className="text-4xl leading-none drop-shadow-md">{status.emoji}</span>
+                  <span className={`text-xl font-bold font-display text-white drop-shadow-sm`}>
+                    {t(`weight.status.${ibsStatus}`)}
+                  </span>
+                </div>
+              </div>
+
+              {latestWeight ? (
+                <div className="text-right bg-white/10 rounded-2xl px-3.5 py-2.5 backdrop-blur-md border border-white/20 shadow-inner">
+                  <p className="text-[10px] text-white/70 mb-0.5 font-display uppercase tracking-wider">{t('home.weight')}</p>
+                  <p className="text-2xl font-bold font-display text-white leading-tight drop-shadow-sm">
+                    {latestWeight.weightKg}
+                    <span className="text-sm font-normal text-white/70 ml-0.5">kg</span>
                   </p>
-                )}
-              </div>
-            ) : (
-              <div className="text-right bg-white/60 rounded-2xl px-3 py-2">
-                <p className="text-[10px] text-gray-500 mb-0.5">{t('home.weight')}</p>
-                <p className="text-2xl font-bold text-gray-400">–</p>
-              </div>
-            )}
-          </div>
-
-          {/* 下段: カロリー進捗 */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl px-4 py-3">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold text-gray-600">{t('home.calories')}</p>
-              <p className="text-xs text-gray-500">
-                <span className="text-base font-bold text-gray-900">{calories.toLocaleString()}</span>
-                <span className="text-gray-400"> / {target.toLocaleString()} {t('common.kcal')}</span>
-              </p>
-            </div>
-            <div className="h-2.5 bg-black/[0.07] rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-700 ${calBarColor}`}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-            <div className="flex justify-between mt-1.5 text-[11px] text-gray-500">
-              <span>P {dailyLog?.totalProtein ?? 0}g</span>
-              <span>F {dailyLog?.totalFat ?? 0}g</span>
-              <span>C {dailyLog?.totalCarbs ?? 0}g</span>
-              <span className="font-semibold">{pct}%</span>
+                  {profile?.targetWeightKg && (
+                    <p className="text-[11px] text-white/50 mt-1">
+                      {t('home.goal_remaining', {
+                        diff: (profile.targetWeightKg - latestWeight.weightKg).toFixed(1),
+                      })}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="text-right bg-white/10 rounded-2xl px-3.5 py-2.5 backdrop-blur-md border border-white/20">
+                  <p className="text-[10px] text-white/70 mb-0.5 font-display">{t('home.weight')}</p>
+                  <p className="text-2xl font-bold font-display text-white/40">–</p>
+                </div>
+              )}
             </div>
 
-            {remaining > 0 && pct < 80 && (
-              <div className="mt-2.5 flex items-center gap-1.5 text-xs text-amber-700">
-                <AlertCircle size={12} />
-                <span>{t('home.calorie_alert', { remaining })}</span>
+            {/* 下段: カロリー進捗 */}
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3.5 border border-white/10 shadow-inner">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[11px] font-semibold text-white/80 font-display uppercase tracking-wider">{t('home.calories')}</p>
+                <p className="text-xs text-white/60">
+                  <span className="text-base font-bold font-display text-white">{Math.round(calories).toLocaleString()}</span>
+                  <span className="text-white/40 font-display"> / {target.toLocaleString()} {t('common.kcal')}</span>
+                </p>
               </div>
-            )}
+              <div className="h-2.5 bg-black/40 rounded-full overflow-hidden shadow-inner flex">
+                <div
+                  className={`h-full rounded-full transition-all duration-1000 ease-out ${calBarColor} shadow-[0_0_10px_rgba(255,255,255,0.3)]`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <div className="flex justify-between mt-2.5 text-[11px] font-medium text-white/60 font-display">
+                <span>P <span className="text-white/90">{Math.round((dailyLog?.totalProtein ?? 0) * 10) / 10}g</span></span>
+                <span>F <span className="text-white/90">{Math.round((dailyLog?.totalFat ?? 0) * 10) / 10}g</span></span>
+                <span>C <span className="text-white/90">{Math.round((dailyLog?.totalCarbs ?? 0) * 10) / 10}g</span></span>
+                <span className="font-bold text-white/90">{pct}%</span>
+              </div>
+
+              {remaining > 0 && pct < 80 && (
+                <div className="mt-3 flex items-center gap-1.5 text-[11px] text-amber-200 bg-amber-900/40 px-2 py-1.5 rounded-lg border border-amber-500/30">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>{t('home.calorie_alert', { remaining })}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* ── 今日の食事 ──────────────────────────── */}
-        <div className="bg-white rounded-3xl shadow-[0_2px_16px_rgba(0,0,0,0.06)] border border-black/[0.04] overflow-hidden">
-          <div className="flex justify-between items-center px-4 py-3.5 border-b border-gray-50">
-            <p className="text-sm font-semibold text-gray-800">{t('home.meals_today')}</p>
+        <div className="glass-panel rounded-[1.35rem] overflow-hidden mt-6 shadow-sm border border-black/[0.03]">
+          <div className="flex justify-between items-center px-5 py-4 border-b border-black/[0.04] bg-white/40">
+            <p className="text-[13px] font-bold text-gray-800 font-display uppercase tracking-wider">{t('home.meals_today')}</p>
             <button
               onClick={() => navigate('/meals')}
-              className="flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-xl"
+              className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-100/70 hover:bg-emerald-200/80 active:scale-95 transition-all px-3.5 py-1.5 rounded-full shadow-sm"
+              data-motion
             >
-              <Plus size={12} strokeWidth={2.5} />
+              <Plus size={14} strokeWidth={2.5} />
               {t('home.add_meal')}
             </button>
           </div>
 
           {todayMeals && todayMeals.length > 0 ? (
-            <div className="divide-y divide-gray-50/80">
+            <div className="divide-y divide-black/[0.04]">
               {todayMeals.map(meal => (
-                <div key={meal.id} className="px-4 py-3">
+                <div key={meal.id} className="px-5 py-4 hover:bg-white/60 transition-colors cursor-default">
                   <div className="flex justify-between items-center gap-3">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${MEAL_TYPE_STYLE[meal.type] ?? 'bg-gray-100 text-gray-500'}`}>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full font-display uppercase tracking-wide ${MEAL_TYPE_STYLE[meal.type] ?? 'bg-gray-100 text-gray-500'}`}>
                           {t(`meals.type.${meal.type}`)}
                         </span>
                         {meal.gutFeedback && (
-                          <span className="text-sm">{GUT_EMOJI[meal.gutFeedback]}</span>
+                          <span className="text-sm rounded-full bg-white/60 shadow-sm px-1.5">{GUT_EMOJI[meal.gutFeedback]}</span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-700 truncate">{meal.description}</p>
+                      <p className="text-[13px] font-medium text-gray-700 truncate">{meal.description}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-bold text-gray-900">
-                        {meal.totalCalories}
-                        <span className="text-[10px] font-normal text-gray-400 ml-0.5">kcal</span>
+                      <p className="text-lg font-bold font-display text-gray-900 tracking-tight">
+                        {Math.round(meal.totalCalories)}
+                        <span className="text-[10px] font-normal text-gray-400 ml-0.5 uppercase">kcal</span>
                       </p>
-                      <p className={`text-[11px] font-medium ${
-                        meal.ibsSafetyScore === 'safe'    ? 'text-emerald-600' :
-                        meal.ibsSafetyScore === 'caution' ? 'text-amber-600'   : 'text-red-500'
+                      <p className={`text-[11px] font-bold mt-0.5 uppercase tracking-wider drop-shadow-sm ${
+                        meal.ibsSafetyScore === 'safe'    ? 'text-emerald-500' :
+                        meal.ibsSafetyScore === 'caution' ? 'text-amber-500'   : 'text-red-500'
                       }`}>
                         {t(`meals.safety.${meal.ibsSafetyScore}`)}
                       </p>
@@ -176,8 +184,8 @@ export default function HomePage() {
               ))}
             </div>
           ) : (
-            <div className="px-4 py-10 text-center text-sm text-gray-400">
-              {t('home.no_meals')}
+            <div className="bg-white/40">
+              <EmptyState title={t('home.no_meals')} />
             </div>
           )}
         </div>
@@ -187,14 +195,19 @@ export default function HomePage() {
           onClick={() => navigate('/chat')}
           whileTap={{ scale: 0.97 }}
           transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-          className="w-full flex items-center gap-3 bg-emerald-600 text-white rounded-3xl px-5 py-4 text-left shadow-[0_6px_20px_rgba(61,143,133,0.38)]"
+          className="w-full flex items-center gap-4 bg-gradient-primary text-white rounded-[1.35rem] px-5 py-4 text-left shadow-glow mt-6 border border-white/20 relative overflow-hidden"
         >
-          <TrendingUp size={20} className="shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-semibold">{t('home.ai_chat_title')}</p>
-            <p className="text-xs opacity-75">{t('home.ai_chat_desc')}</p>
+          {/* Glass highlight effect overlay */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/10 to-white/0 pointer-events-none" />
+          
+          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md shrink-0 border border-white/30 shadow-inner">
+            <TrendingUp size={20} className="text-white drop-shadow-md" />
           </div>
-          <ChevronRight size={16} className="opacity-50 shrink-0" />
+          <div className="flex-1 relative z-10">
+            <p className="text-sm font-bold font-display tracking-wide drop-shadow-sm">{t('home.ai_chat_title')}</p>
+            <p className="text-[12px] opacity-80 mt-0.5 font-medium">{t('home.ai_chat_desc')}</p>
+          </div>
+          <ChevronRight size={18} className="opacity-80 shrink-0 relative z-10" />
         </motion.button>
 
       </div>

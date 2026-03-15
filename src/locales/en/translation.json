@@ -161,7 +161,8 @@
     "gut_check_timing_notification": "🔔 Notify 1 hour after eating",
     "gut_check_timing_next_meal": "🍽️ Ask at next meal",
     "gut_check_timing_both": "✅ Both (notification + next meal)",
-    "gut_check_timing_help": "Choose when to record how your gut felt after eating"
+    "gut_check_timing_help": "Choose when to record how your gut felt after eating",
+    "unmatched_count": "{{count}} items"
   },
   "onboarding": {
     "welcome": "Welcome to FutoLab",
@@ -177,6 +178,18 @@
     "step4_desc": "A Claude API key is required for AI features",
     "skip_api": "Set up later",
     "ibs_type_desc": "Select your IBS type if diagnosed"
+  },
+  "success": {
+    "calorie_goal": "Calorie Goal Reached!",
+    "calorie_goal_desc": "You've hit your daily calorie target",
+    "weight_goal": "Weight Goal Reached!",
+    "weight_goal_desc": "Congratulations! You've reached your target weight"
+  },
+  "gut": {
+    "great": "Great",
+    "ok": "OK",
+    "bad": "Bad",
+    "no_record": "No record"
   },
   "common": {
     "loading": "Loading...",

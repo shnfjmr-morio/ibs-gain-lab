@@ -22,7 +22,7 @@ function fire(check: PendingCheck) {
     : `「${check.description}」から1時間。お腹の調子はいかがですか？`
   new Notification('FutoLab', {
     body,
-    icon: '/pwa-192x192.png',
+    icon: '/assets/logo-icon.png',
     tag: `gut-check-${check.mealId}`,
     requireInteraction: false,
   })

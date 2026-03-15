@@ -47,22 +47,44 @@ export function lookupFodmap(description: string): LookupResult | null {
 }
 
 /**
- * 全マッチ（複数食材）を返す。将来の詳細表示用。
+ * 全マッチ（複数食材）を返す。
+ * 長いキーワードを優先し、重複範囲を除外（最長一致・非重複）。
+ * 例：「ゆで卵」が「卵」より長いため「生卵」の誤マッチを防ぐ。
  */
 export function lookupAllFodmap(description: string): LookupResult[] {
   if (!description.trim()) return []
 
   const text = description.toLowerCase()
-  const results: LookupResult[] = []
-  const seen = new Set<string>()
+
+  // 各エントリで最長キーワードのマッチ位置を探す
+  const candidates: Array<{ entry: FodmapEntry; keyword: string; start: number; end: number }> = []
 
   for (const entry of FODMAP_DB) {
+    let best: { keyword: string; start: number; end: number } | null = null
     for (const kw of (entry.keywords ?? [])) {
-      if (text.includes(kw.toLowerCase()) && !seen.has(entry.id)) {
-        results.push({ entry, matchedKeyword: kw })
-        seen.add(entry.id)
-        break
+      const kwLower = kw.toLowerCase()
+      const idx = text.indexOf(kwLower)
+      if (idx !== -1) {
+        if (!best || kwLower.length > best.end - best.start) {
+          best = { keyword: kw, start: idx, end: idx + kwLower.length }
+        }
       }
+    }
+    if (best) candidates.push({ entry, ...best })
+  }
+
+  // 長いキーワード優先でソート
+  candidates.sort((a, b) => (b.end - b.start) - (a.end - a.start))
+
+  // 重複範囲を除外しながら選択（greedy）
+  const results: LookupResult[] = []
+  const used: Array<{ start: number; end: number }> = []
+
+  for (const c of candidates) {
+    const overlaps = used.some(r => c.start < r.end && c.end > r.start)
+    if (!overlaps) {
+      results.push({ entry: c.entry, matchedKeyword: c.keyword })
+      used.push({ start: c.start, end: c.end })
     }
   }
 

@@ -80,9 +80,11 @@ export default function SettingsPage() {
     const allWeights = await db.weightLogs.toArray()
     const allChats = await db.chatMessages.toArray()
     const allUnmatched = await db.unmatchedFoods.toArray()
+    // APIキーをエクスポートから除外（セキュリティ対策）
+    const { claudeApiKey: _omit, ...safeProfile } = profile ?? {}
     const data = {
       appVersion: APP_VERSION,
-      profile,
+      profile: safeProfile,
       meals: allMeals,
       weightLogs: allWeights,
       chatMessages: allChats,
@@ -238,7 +240,7 @@ export default function SettingsPage() {
                 {t('settings.export_unmatched')}
               </span>
               <span className="bg-amber-200 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">
-                {unmatchedCount}件
+                {t('settings.unmatched_count', { count: unmatchedCount })}
               </span>
             </button>
           </div>
