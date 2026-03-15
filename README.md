@@ -71,3 +71,36 @@ export default defineConfig([
   },
 ])
 ```
+
+## Vercel Deploy (Beta)
+
+### 初回デプロイ
+
+```bash
+# Vercel CLI をインストール（未インストールの場合）
+npm i -g vercel
+
+# プロジェクトルートで実行
+vercel
+
+# 本番デプロイ
+vercel --prod
+```
+
+### Vercel ダッシュボードから連携する場合
+
+1. [vercel.com](https://vercel.com) にログイン
+2. "Add New Project" から GitHub リポジトリを選択
+3. Framework Preset: **Vite**
+4. Build Command: `npm run build`
+5. Output Directory: `dist`
+6. "Deploy" をクリック
+
+### 環境変数
+
+`.env.example` をコピーして `.env.local` を作成してください。
+APIキー等の秘密情報はアプリ内の設定画面から入力するため、`.env` への記載は不要です。
+
+```bash
+cp .env.example .env.local
+```

@@ -28,7 +28,6 @@ const PageWrapper = forwardRef<HTMLDivElement, PageWrapperProps>(
           inset: 0,
           overflowY: 'auto',
           overscrollBehavior: 'contain',
-          WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
         }}
       >
         {children}

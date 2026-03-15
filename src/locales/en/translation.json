@@ -46,6 +46,10 @@
     "voice_prompt": "Tell me what you ate",
     "voice_listening": "Listening...",
     "voice_not_supported": "Voice input is not available in this browser",
+    "voice_tap_to_start": "Tap to start voice input",
+    "voice_pwa_title": "Voice input requires Safari",
+    "voice_pwa_desc": "Voice input is unavailable in the installed app due to iOS restrictions. Please open in Safari to use this feature.",
+    "voice_open_safari": "Open in Safari",
     "next": "Next",
     "send_to_ai": "Analyze with AI",
     "ai_fill": "Auto-fill with AI ✨",
@@ -126,7 +130,12 @@
       "meal_advice": "Meal suggestions",
       "ibs_consult": "Gut check-in",
       "supplement": "Supplement advice"
-    }
+    },
+    "new_chat": "New Chat",
+    "history": "History",
+    "delete_session": "Delete conversation",
+    "delete_confirm": "Delete this chat?",
+    "no_history": "No chat history yet"
   },
   "settings": {
     "title": "Settings",
@@ -162,7 +171,18 @@
     "gut_check_timing_next_meal": "🍽️ Ask at next meal",
     "gut_check_timing_both": "✅ Both (notification + next meal)",
     "gut_check_timing_help": "Choose when to record how your gut felt after eating",
-    "unmatched_count": "{{count}} items"
+    "unmatched_count": "{{count}} items",
+    "ai_provider": "AI Settings",
+    "claude_api_key": "Claude API Key",
+    "openai_api_key": "OpenAI API Key",
+    "gemini_api_key": "Gemini API Key",
+    "ai_model_optional": "Model name (optional)",
+    "ai_model_hint": "Leave blank to use the default model",
+    "data_management": "Data Management",
+    "export_json": "Export All Data",
+    "export_json_desc": "JSON backup (protects against iOS data loss)",
+    "export_csv": "Export Weight Log as CSV",
+    "export_csv_desc": "Open in Excel or other apps"
   },
   "onboarding": {
     "welcome": "Welcome to FutoLab",

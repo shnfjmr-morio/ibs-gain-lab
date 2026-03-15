@@ -1,6 +1,10 @@
 // ─── 基本型 ───
 
 export type IBSType = 'IBS-D' | 'IBS-C' | 'IBS-M' | 'IBS-U'
+
+// ─── AI プロバイダー ───
+
+export type AIProviderType = 'claude' | 'openai' | 'gemini'
 export type IBSStatus = 'stable' | 'mild' | 'active' | 'recovering'
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 export type FODMAPLevel = 'low' | 'moderate' | 'high'
@@ -27,6 +31,11 @@ export interface UserProfile {
   language: Language
   gutCheckTiming: GutCheckTiming
   claudeApiKey: string
+  // AI プロバイダー設定
+  aiProvider?: AIProviderType
+  openaiApiKey?: string
+  geminiApiKey?: string
+  aiModel?: string
   createdAt: string
   updatedAt: string
 }
@@ -73,6 +82,7 @@ export interface DailyLog {
   totalProtein: number
   totalFat: number
   totalCarbs: number
+  ibsStatus?: IBSStatus  // WeightLog から同期されるIBS状態
   updatedAt: string
 }
 
@@ -100,4 +110,22 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   timestamp: string
+}
+
+// ─── 食後症状ログ ───────────────────────────────────────────────────
+
+/** 食後の腸の状態（4択） */
+export type GutFeedbackScore = 'great' | 'ok' | 'bad' | 'terrible'
+
+/** 食後症状ログ（PostMealSymptomLog） */
+export interface PostMealSymptomLog {
+  id: string
+  mealId: string          // 紐付く食事ID
+  date: string            // YYYY-MM-DD
+  timestamp: string       // ISO8601
+  gutScore: GutFeedbackScore
+  /** 詳細症状（複数選択可） */
+  symptoms?: string[]     // 'bloating' | 'pain' | 'loose' | 'constipation' | 'nausea' | 'other'
+  notes?: string          // 自由記述
+  hoursAfterMeal?: number // 食後何時間後の記録か
 }

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useProfileStore } from '../../../stores/useProfileStore'
 import { db } from '../../../db/schema'
 import { analyzeMeal } from '../../../services/ai/ClaudeService'
@@ -8,8 +8,10 @@ import { recalculateDailyLog } from '../../../services/dailyLog/DailyLogService'
 import { scheduleGutCheck, requestNotificationPermission } from '../../../services/notifications/GutCheckNotifier'
 import { toDateStr, toTimeStr, nowIso, uuid } from '../../../utils/date'
 import { haptic } from '../../../utils/haptics'
-import type { Meal, MealType, FODMAPLevel } from '../../../types/entities'
+import { saveSymptomLog } from '../../../services/symptoms/PostMealSymptomService'
+import type { Meal, MealType, FODMAPLevel, GutFeedbackScore } from '../../../types/entities'
 import type { AddStep, InputMode, MealDraft } from '../types'
+import { useSpeechInput, type SpeechRecognitionError } from '../../../hooks/useSpeechInput'
 
 export interface MealAddFlowReturn {
   handlePendingFeedbackSkip: () => void
@@ -31,6 +33,10 @@ export interface MealAddFlowReturn {
   showSuccess: boolean
   pendingFeedbackMeal: Meal | null
   voiceSupported: boolean
+  /** PWAスタンドアロンモードか（iOSホーム画面追加後は音声API非対応） */
+  isPWAStandalone: boolean
+  /** 音声認識エラー情報 */
+  speechError: SpeechRecognitionError | null
   hasApiKey: boolean
   lang: 'ja' | 'en'
   // セッター
@@ -50,7 +56,9 @@ export interface MealAddFlowReturn {
   handleSave: () => Promise<void>
   handleAllowNotification: () => Promise<void>
   handlePendingFeedback: (feedback: Meal['gutFeedback']) => Promise<void>
+  /** 音声認識を開始（トグル方式: 実行中は stop を呼ぶこと） */
   startListening: () => void
+  /** 音声認識を停止 */
   stopListening: () => void
   resetAdd: () => void
 }
@@ -72,32 +80,26 @@ export function useMealAddFlow(viewDate: string): MealAddFlowReturn {
   const [carbs, setCarbs]             = useState('')
   const [aiError, setAiError]         = useState('')
   const [saveError, setSaveError]     = useState('')
-  const [isListening, setIsListening] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [pendingFeedbackMeal, setPendingFeedbackMeal] = useState<Meal | null>(null)
 
-  const recogRef = useRef<any>(null)
-
-  const voiceSupported = 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window
   const hasApiKey = !!profile?.claudeApiKey
   const lang = profile?.language ?? 'ja'
 
-  // ─── 音声入力 ─────────────────────────────────────────────────
+  // ─── 音声入力（useSpeechInput に委譲） ────────────────────────
 
-  const startListening = () => {
-    const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition
-    const recog = new SR()
-    recog.lang = lang === 'en' ? 'en-US' : 'ja-JP'
-    recog.interimResults = false
-    recog.onresult = (e: any) => { setDescription(e.results[0][0].transcript); setIsListening(false) }
-    recog.onerror = () => setIsListening(false)
-    recog.onend   = () => setIsListening(false)
-    recogRef.current = recog
-    recog.start()
-    setIsListening(true)
-  }
+  const speech = useSpeechInput({
+    lang,
+    onResult: (transcript) => {
+      // 認識結果を既存テキストに追記（上書きではなく連結）
+      setDescription(prev => prev ? `${prev}　${transcript}` : transcript)
+    },
+  })
 
-  const stopListening = () => { recogRef.current?.stop(); setIsListening(false) }
+  // 後方互換のエイリアス（Gemini側の更新まで維持）
+  const startListening = speech.start
+  const stopListening  = speech.stop
+  const voiceSupported = speech.isSupported
 
   // ─── 追加フロー ───────────────────────────────────────────────
 
@@ -269,6 +271,15 @@ export function useMealAddFlow(viewDate: string): MealAddFlowReturn {
   const handlePendingFeedback = async (feedback: Meal['gutFeedback']) => {
     if (pendingFeedbackMeal) {
       await db.meals.update(pendingFeedbackMeal.id, { gutFeedback: feedback })
+      if (feedback) {
+        const mealTime = new Date(`${pendingFeedbackMeal.date}T${pendingFeedbackMeal.time}:00`)
+        const hoursAfterMeal = Math.round((Date.now() - mealTime.getTime()) / 360000) / 10
+        await saveSymptomLog({
+          mealId: pendingFeedbackMeal.id,
+          gutScore: feedback as GutFeedbackScore,
+          hoursAfterMeal,
+        })
+      }
     }
     setPendingFeedbackMeal(null)
     setShowAdd(true)
@@ -295,7 +306,10 @@ export function useMealAddFlow(viewDate: string): MealAddFlowReturn {
   return {
     showAdd, addStep, inputMode, mealType, description, draft, matchResults,
     calories, protein, fat, carbs, aiError, saveError,
-    isListening, showSuccess, pendingFeedbackMeal, voiceSupported, hasApiKey, lang,
+    isListening: speech.isListening,
+    showSuccess, pendingFeedbackMeal,
+    voiceSupported, isPWAStandalone: speech.isPWAStandalone, speechError: speech.error,
+    hasApiKey, lang,
     setInputMode, setMealType, setDescription, setCalories, setProtein, setFat, setCarbs,
     setAddStep, setShowSuccess,
     handleAddClick, handleNext, handleAiAnalyze, handleSave, handleAllowNotification,

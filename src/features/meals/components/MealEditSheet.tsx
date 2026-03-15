@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { m } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { Trash2 } from 'lucide-react'
@@ -21,21 +21,27 @@ export function MealEditSheet({ editingMeal, onClose }: MealEditSheetProps) {
   const [editForm, setEditForm] = useState<EditForm | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
 
-  // editingMealが変わったときにformを初期化
-  const currentForm: EditForm | null = editingMeal && !editForm
-    ? {
-        mealType:    editingMeal.type,
-        description: editingMeal.description,
-        calories:    editingMeal.totalCalories > 0 ? String(editingMeal.totalCalories) : '',
-        protein:     editingMeal.totalProtein  > 0 ? String(editingMeal.totalProtein)  : '',
-        fat:         editingMeal.totalFat      > 0 ? String(editingMeal.totalFat)      : '',
-        carbs:       editingMeal.totalCarbs    > 0 ? String(editingMeal.totalCarbs)    : '',
-        fodmapLevel: editingMeal.fodmapLevel,
-        ibsSafety:   editingMeal.ibsSafetyScore,
-        gutFeedback: editingMeal.gutFeedback ?? '',
-        notes:       editingMeal.notes,
-      }
-    : editForm
+  // editingMealが切り替わったときにeditFormをリセット・初期化
+  useEffect(() => {
+    if (!editingMeal) {
+      setEditForm(null)
+      return
+    }
+    setEditForm({
+      mealType:    editingMeal.type,
+      description: editingMeal.description,
+      calories:    editingMeal.totalCalories > 0 ? String(editingMeal.totalCalories) : '',
+      protein:     editingMeal.totalProtein  > 0 ? String(editingMeal.totalProtein)  : '',
+      fat:         editingMeal.totalFat      > 0 ? String(editingMeal.totalFat)      : '',
+      carbs:       editingMeal.totalCarbs    > 0 ? String(editingMeal.totalCarbs)    : '',
+      fodmapLevel: editingMeal.fodmapLevel,
+      ibsSafety:   editingMeal.ibsSafetyScore,
+      gutFeedback: editingMeal.gutFeedback ?? '',
+      notes:       editingMeal.notes,
+    })
+  }, [editingMeal])
+
+  const currentForm: EditForm | null = editForm
 
   const handleClose = () => {
     setEditForm(null)

@@ -1,13 +1,5 @@
 import { db } from '../../db/schema'
-import { toDateStr } from '../../utils/date'
-
-// ─── 内部ヘルパー ─────────────────────────────────────────────
-
-function subtractDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr)
-  d.setDate(d.getDate() - days)
-  return d.toISOString().slice(0, 10)
-}
+import { toDateStr, subtractDays } from '../../utils/date'
 
 // ─── 公開 API ─────────────────────────────────────────────────
 

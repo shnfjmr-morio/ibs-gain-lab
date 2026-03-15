@@ -128,31 +128,78 @@ export function MealConfirmSheet({
 
               {matchResults.length > 0 ? (
                 <div className="space-y-2">
-                  {matchResults.map((m) => (
-                    <div key={m.entry.id} className="bg-white border border-gray-200 rounded-xl p-3 space-y-1.5">
+                  {matchResults.map((match) => (
+                    <div key={match.entry.id} className="bg-white border border-gray-200 rounded-xl p-3 space-y-1.5">
                       <div className="flex justify-between items-center">
-                        <p className="text-sm font-semibold text-gray-800">{m.entry.nameJa}</p>
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${fodmapColor[m.entry.fodmapLevel]}`}>
-                          {t(`meals.fodmap_level.${m.entry.fodmapLevel}`)}
+                        <p className="text-sm font-semibold text-gray-800">{match.entry.nameJa}</p>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${fodmapColor[match.entry.fodmapLevel]}`}>
+                          {t(`meals.fodmap_level.${match.entry.fodmapLevel}`)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-gray-500">{t('meals.ibs_safety')}</span>
-                        <span className={`text-xs font-medium ${safetyColor[m.entry.ibsSafety]}`}>
-                          {t(`meals.safety.${m.entry.ibsSafety}`)}
+                        <span className={`text-xs font-medium ${safetyColor[match.entry.ibsSafety]}`}>
+                          {t(`meals.safety.${match.entry.ibsSafety}`)}
                         </span>
                       </div>
-                      {(lang === 'en' ? m.entry.noteEn : m.entry.noteJa) && (
+                      {(lang === 'en' ? match.entry.noteEn : match.entry.noteJa) && (
                         <p className="text-xs text-gray-400">
-                          {lang === 'en' ? m.entry.noteEn : m.entry.noteJa}
+                          {lang === 'en' ? match.entry.noteEn : match.entry.noteJa}
                         </p>
                       )}
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div className="bg-white border border-gray-200 rounded-xl p-3">
-                  <p className="text-xs text-gray-400">{draft.notes}</p>
+              ) : null}
+
+              {/* FODMAPレベル + IBS安全スコア を横並びカードで */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* FODMAPレベル */}
+                <div className={`rounded-2xl p-3 text-center ${
+                  draft.fodmapLevel === 'low'      ? 'bg-emerald-50 border border-emerald-100' :
+                  draft.fodmapLevel === 'moderate' ? 'bg-amber-50 border border-amber-100' :
+                  'bg-red-50 border border-red-100'
+                }`}>
+                  <p className="text-[10px] font-display font-bold text-gray-400 uppercase tracking-wider mb-1">FODMAP</p>
+                  <p className={`text-[15px] font-display font-bold uppercase ${
+                    draft.fodmapLevel === 'low'      ? 'text-emerald-600' :
+                    draft.fodmapLevel === 'moderate' ? 'text-amber-600' :
+                    'text-red-600'
+                  }`}>{draft.fodmapLevel}</p>
+                </div>
+                {/* IBS安全スコア */}
+                <div className={`rounded-2xl p-3 text-center ${
+                  draft.ibsSafety === 'safe'    ? 'bg-emerald-50 border border-emerald-100' :
+                  draft.ibsSafety === 'caution' ? 'bg-amber-50 border border-amber-100' :
+                  'bg-red-50 border border-red-100'
+                }`}>
+                  <p className="text-[10px] font-display font-bold text-gray-400 uppercase tracking-wider mb-1">IBS</p>
+                  <p className={`text-[15px] font-display font-bold ${
+                    draft.ibsSafety === 'safe'    ? 'text-emerald-600' :
+                    draft.ibsSafety === 'caution' ? 'text-amber-600' :
+                    'text-red-600'
+                  }`}>{draft.ibsSafety}</p>
+                </div>
+              </div>
+
+              {/* 検出した食材リスト */}
+              {draft.matchedFoodNames && draft.matchedFoodNames.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-display font-bold text-gray-400 uppercase tracking-wider mb-2">検出した食材</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {draft.matchedFoodNames.map((name, i) => (
+                      <span key={i} className="text-[11px] bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* FODMAPの注意点 */}
+              {draft.notes && (
+                <div className="bg-amber-50/80 border border-amber-100 rounded-2xl px-4 py-3">
+                  <p className="text-[12px] text-amber-700 leading-relaxed">{draft.notes}</p>
                 </div>
               )}
 

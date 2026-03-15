@@ -1,32 +1,26 @@
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { m } from 'motion/react'
-import { Plus, TrendingUp, AlertCircle, ChevronRight } from 'lucide-react'
+import { Plus, TrendingUp, ChevronRight } from 'lucide-react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import AppShell from '../../components/layout/AppShell'
 import { useProfileStore } from '../../stores/useProfileStore'
 import { db } from '../../db/schema'
 import { toDateStr } from '../../utils/date'
-import { APP_VERSION } from '../../config/version'
 import { EmptyState } from '../../components/ui/EmptyState'
+import { HeroWeightChart } from '../../components/ui/HeroWeightChart'
+import { getLast7DaysWeights } from '../../services/home/HomeStatsService'
+import { updateThemeColor } from '../../utils/themeColor'
 import type { IBSStatus, GutFeedback } from '../../types/entities'
 
 const GUT_EMOJI: Record<GutFeedback, string> = { great: '😊', ok: '😐', bad: '😟' }
 
-const STATUS_CONFIG: Record<IBSStatus, {
-  emoji: string; barColor: string; textColor: string; bgColor: string; borderColor: string
-}> = {
-  stable:     { emoji: '😊', barColor: 'bg-emerald-500', textColor: 'text-emerald-700', bgColor: 'bg-emerald-50',  borderColor: 'border-emerald-100' },
-  mild:       { emoji: '😐', barColor: 'bg-amber-400',   textColor: 'text-amber-700',   bgColor: 'bg-amber-50',   borderColor: 'border-amber-100'   },
-  active:     { emoji: '😟', barColor: 'bg-red-400',     textColor: 'text-red-700',     bgColor: 'bg-red-50',     borderColor: 'border-red-100'     },
-  recovering: { emoji: '🔄', barColor: 'bg-blue-400',    textColor: 'text-blue-700',    bgColor: 'bg-blue-50',    borderColor: 'border-blue-100'    },
-}
-
-const MEAL_TYPE_STYLE: Record<string, string> = {
-  breakfast: 'bg-orange-100 text-orange-600',
-  lunch:     'bg-blue-100 text-blue-600',
-  dinner:    'bg-purple-100 text-purple-600',
-  snack:     'bg-gray-100 text-gray-500',
+const STATUS_CONFIG: Record<IBSStatus, { emoji: string }> = {
+  stable:     { emoji: '😊' },
+  mild:       { emoji: '😐' },
+  active:     { emoji: '😟' },
+  recovering: { emoji: '🔄' },
 }
 
 export default function HomePage() {
@@ -35,179 +29,257 @@ export default function HomePage() {
   const { profile } = useProfileStore()
   const today = toDateStr()
 
-  const dailyLog    = useLiveQuery(() => db.dailyLogs.get(today), [today])
-  const todayMeals  = useLiveQuery(() => db.meals.where('date').equals(today).reverse().sortBy('time'), [today])
+  const dailyLog     = useLiveQuery(() => db.dailyLogs.get(today), [today])
+  const todayMeals   = useLiveQuery(() => db.meals.where('date').equals(today).reverse().sortBy('time'), [today])
   const latestWeight = useLiveQuery(() => db.weightLogs.orderBy('date').reverse().first(), [])
 
-  const target    = profile?.targetDailyCalories ?? 2200
-  const calories  = dailyLog?.totalCalories ?? 0
-  const pct       = Math.min(Math.round((calories / target) * 100), 100)
-  const remaining = Math.max(target - calories, 0)
+  const sparkWeightsRaw = useLiveQuery(
+    () => getLast7DaysWeights(),
+    []
+  )
+  const sparkWeights: { date: string; weightKg: number }[] = sparkWeightsRaw ?? []
 
-  const ibsStatus  = latestWeight?.ibsStatus ?? 'stable'
-  const status     = STATUS_CONFIG[ibsStatus]
-  const calBarColor = pct >= 90 ? 'bg-emerald-500' : pct >= 60 ? 'bg-amber-400' : 'bg-red-400'
+  const target   = profile?.targetDailyCalories ?? 2200
+  const calories = dailyLog?.totalCalories ?? 0
+  const pct      = Math.min(Math.round((calories / target) * 100), 100)
+
+  const ibsStatus = (latestWeight?.ibsStatus ?? 'stable') as IBSStatus
+  const status    = STATUS_CONFIG[ibsStatus]
+
+  // IBSステータス変更検知 → glow pulse + theme-color 更新
+  const [statusChanged, setStatusChanged] = useState(false)
+  const prevStatus = useRef(ibsStatus)
+
+  useEffect(() => {
+    if (prevStatus.current !== ibsStatus) {
+      setStatusChanged(true)
+      const timer = setTimeout(() => setStatusChanged(false), 1500)
+      prevStatus.current = ibsStatus
+      return () => clearTimeout(timer)
+    }
+  }, [ibsStatus])
+
+  useEffect(() => {
+    updateThemeColor(ibsStatus)
+  }, [ibsStatus])
 
   return (
     <AppShell>
-      <div className="p-4 space-y-4">
+      {/* ─────────────────────────────────────────────────────── */}
+      {/* ZONE A: Immersive Hero (60svh, dark gradient)           */}
+      {/* ─────────────────────────────────────────────────────── */}
+      <div
+        data-ibs-status={ibsStatus}
+        className="relative min-h-[60svh] bg-state-gradient overflow-hidden flex flex-col justify-end p-5 pb-6"
+      >
+        {/* Ambient glow — IBSステータスに連動 */}
+        <div
+          className={`absolute top-[20%] right-[-15%] w-[280px] h-[280px] rounded-full blur-[120px] pointer-events-none
+            transition-all duration-[1500ms]
+            ${statusChanged ? 'opacity-70 scale-110' : 'opacity-40 scale-100'}`}
+          style={{ backgroundColor: 'var(--state-accent)' }}
+        />
+        <div
+          className="absolute bottom-[10%] left-[-10%] w-[200px] h-[200px] rounded-full blur-[100px] opacity-20 pointer-events-none transition-colors duration-[1500ms]"
+          style={{ backgroundColor: 'var(--state-accent)' }}
+        />
 
-        {/* アプリ名 + バージョン */}
-        <div className="flex items-baseline justify-between px-1">
-          <h1 className="text-3xl font-display font-bold text-gray-900 tracking-tight text-gradient-primary">FutoLab</h1>
-          <span className="text-xs font-semibold text-emerald-700 bg-emerald-100/80 px-3 py-1.5 rounded-full shadow-sm">
-            {APP_VERSION}
-          </span>
+        {/* 背景体重グラフ — 全幅・全高 */}
+        <div className="absolute inset-0 px-0">
+          <HeroWeightChart data={sparkWeights} />
         </div>
 
-        {/* ── ヒーローカード（腸の状態 + カロリー） ───── */}
-        <div className="relative rounded-3xl p-1 overflow-hidden shadow-glow">
-          {/* Gradient Background */}
-          <div className="absolute inset-0 bg-gradient-primary" />
-          
-          {/* Glass Overlay wrapper */}
-          <div className="relative rounded-[1.35rem] p-5 glass-panel-dark flex flex-col gap-5">
-
-            {/* 上段: 腸の状態 + 体重 */}
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[11px] font-semibold text-white/60 uppercase tracking-widest mb-1.5 font-display">
-                  {t('home.ibs_status')}
-                </p>
-                <div className="flex items-center gap-2.5">
-                  <span className="text-4xl leading-none drop-shadow-md">{status.emoji}</span>
-                  <span className={`text-xl font-bold font-display text-white drop-shadow-sm`}>
-                    {t(`weight.status.${ibsStatus}`)}
-                  </span>
-                </div>
-              </div>
-
-              {latestWeight ? (
-                <div className="text-right bg-white/10 rounded-2xl px-3.5 py-2.5 backdrop-blur-md border border-white/20 shadow-inner">
-                  <p className="text-[10px] text-white/70 mb-0.5 font-display uppercase tracking-wider">{t('home.weight')}</p>
-                  <p className="text-2xl font-bold font-display text-white leading-tight drop-shadow-sm">
-                    {latestWeight.weightKg}
-                    <span className="text-sm font-normal text-white/70 ml-0.5">kg</span>
-                  </p>
-                  {profile?.targetWeightKg && (
-                    <p className="text-[11px] text-white/50 mt-1">
-                      {t('home.goal_remaining', {
-                        diff: (profile.targetWeightKg - latestWeight.weightKg).toFixed(1),
-                      })}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div className="text-right bg-white/10 rounded-2xl px-3.5 py-2.5 backdrop-blur-md border border-white/20">
-                  <p className="text-[10px] text-white/70 mb-0.5 font-display">{t('home.weight')}</p>
-                  <p className="text-2xl font-bold font-display text-white/40">–</p>
-                </div>
-              )}
+        {/* Foreground content */}
+        <div className="relative z-10 space-y-4">
+          {/* アプリ名 + ステータスバッジ */}
+          <div className="flex items-center justify-between">
+            <h1 className="text-[17px] font-display font-bold text-white/60 tracking-wide">
+              FutoLab
+            </h1>
+            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/15">
+              <span className="text-lg leading-none">{status.emoji}</span>
+              <span className="text-[11px] font-display font-bold text-white/80 uppercase tracking-[0.08em]">
+                {t(`weight.status.${ibsStatus}`)}
+              </span>
             </div>
+          </div>
 
-            {/* 下段: カロリー進捗 */}
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3.5 border border-white/10 shadow-inner">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[11px] font-semibold text-white/80 font-display uppercase tracking-wider">{t('home.calories')}</p>
-                <p className="text-xs text-white/60">
-                  <span className="text-base font-bold font-display text-white">{Math.round(calories).toLocaleString()}</span>
-                  <span className="text-white/40 font-display"> / {target.toLocaleString()} {t('common.kcal')}</span>
-                </p>
-              </div>
-              <div className="h-2.5 bg-black/40 rounded-full overflow-hidden shadow-inner flex">
-                <div
-                  className={`h-full rounded-full transition-all duration-1000 ease-out ${calBarColor} shadow-[0_0_10px_rgba(255,255,255,0.3)]`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <div className="flex justify-between mt-2.5 text-[11px] font-medium text-white/60 font-display">
-                <span>P <span className="text-white/90">{Math.round((dailyLog?.totalProtein ?? 0) * 10) / 10}g</span></span>
-                <span>F <span className="text-white/90">{Math.round((dailyLog?.totalFat ?? 0) * 10) / 10}g</span></span>
-                <span>C <span className="text-white/90">{Math.round((dailyLog?.totalCarbs ?? 0) * 10) / 10}g</span></span>
-                <span className="font-bold text-white/90">{pct}%</span>
-              </div>
+          {/* ヒーロー数値: 体重(左) + カロリー%(右) */}
+          <div className="flex items-end justify-between">
+            <div>
+              <m.p
+                key={latestWeight?.weightKg}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                className="text-[72px] font-display font-[800] tracking-[-0.04em] leading-none text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.3)]"
+              >
+                {latestWeight?.weightKg ?? '--'}
+              </m.p>
+              <p className="text-[11px] font-display font-semibold text-white/40 tracking-[0.15em] uppercase mt-1 ml-1">
+                kg
+                {profile?.targetWeightKg && latestWeight && (
+                  <span className="ml-3 text-white/30">
+                    {t('home.goal_remaining', { diff: (profile.targetWeightKg - latestWeight.weightKg).toFixed(1) })}
+                  </span>
+                )}
+              </p>
+            </div>
+            <div className="text-right">
+              <m.p
+                key={pct}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                className="text-[48px] font-display font-bold tracking-[-0.03em] leading-none drop-shadow-[0_2px_16px_rgba(0,0,0,0.2)]"
+                style={{ color: 'var(--state-accent)' }}
+              >
+                {pct}%
+              </m.p>
+              <p className="text-[10px] font-display font-semibold text-white/35 tracking-[0.15em] uppercase mt-1">
+                kcal
+              </p>
+            </div>
+          </div>
 
-              {remaining > 0 && pct < 80 && (
-                <div className="mt-3 flex items-center gap-1.5 text-[11px] text-amber-200 bg-amber-900/40 px-2 py-1.5 rounded-lg border border-amber-500/30">
-                  <AlertCircle size={14} className="shrink-0" />
-                  <span>{t('home.calorie_alert', { remaining })}</span>
-                </div>
-              )}
+          {/* カロリー進捗バー (3px thin, elegant) */}
+          <div className="space-y-2.5">
+            <div className="h-[3px] bg-white/10 rounded-full overflow-hidden">
+              <m.div
+                initial={{ width: 0 }}
+                animate={{ width: `${pct}%` }}
+                transition={{ duration: 1.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                className="h-full rounded-full"
+                style={{
+                  backgroundColor: 'var(--state-accent)',
+                  boxShadow: '0 0 12px var(--state-accent)',
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-[12px] text-white/50 font-display">
+                <span className="text-white/80 font-bold">{Math.round(calories).toLocaleString()}</span>
+                <span className="mx-1">/</span>
+                <span>{target.toLocaleString()} kcal</span>
+              </p>
+              <div className="flex gap-3 text-[10px] font-display font-semibold text-white/40 tracking-wide">
+                <span>P <span className="text-white/70">{Math.round(dailyLog?.totalProtein ?? 0)}g</span></span>
+                <span>F <span className="text-white/70">{Math.round(dailyLog?.totalFat ?? 0)}g</span></span>
+                <span>C <span className="text-white/70">{Math.round(dailyLog?.totalCarbs ?? 0)}g</span></span>
+              </div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* ── 今日の食事 ──────────────────────────── */}
-        <div className="glass-panel rounded-[1.35rem] overflow-hidden mt-6 shadow-sm border border-black/[0.03]">
-          <div className="flex justify-between items-center px-5 py-4 border-b border-black/[0.04] bg-white/40">
-            <p className="text-[13px] font-bold text-gray-800 font-display uppercase tracking-wider">{t('home.meals_today')}</p>
+      {/* Zone A -> Zone B トランジション */}
+      <div
+        data-ibs-status={ibsStatus}
+        className="h-8 bg-gradient-to-b from-[var(--state-to)] to-[#FAFAF7]"
+      />
+
+      {/* ─────────────────────────────────────────────────────── */}
+      {/* ZONE B: Content Cards (light, scrollable)               */}
+      {/* ─────────────────────────────────────────────────────── */}
+      <div className="bg-[#FAFAF7] px-4 pb-8 space-y-4">
+
+        {/* ── 今日の食事 (横スクロールカード) ────────────── */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[13px] font-display font-bold text-gray-700 tracking-[0.06em] uppercase">
+              {t('home.meals_today')}
+            </h2>
             <button
               onClick={() => navigate('/meals')}
-              className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-100/70 hover:bg-emerald-200/80 active:scale-95 transition-all px-3.5 py-1.5 rounded-full shadow-sm"
-              data-motion
+              className="flex items-center gap-1 text-[11px] font-display font-bold tracking-wide uppercase"
+              style={{ color: 'var(--accent-primary)' }}
             >
-              <Plus size={14} strokeWidth={2.5} />
+              <Plus size={13} strokeWidth={2.5} />
               {t('home.add_meal')}
             </button>
           </div>
 
-          {todayMeals && todayMeals.length > 0 ? (
-            <div className="divide-y divide-black/[0.04]">
-              {todayMeals.map(meal => (
-                <div key={meal.id} className="px-5 py-4 hover:bg-white/60 transition-colors cursor-default">
-                  <div className="flex justify-between items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full font-display uppercase tracking-wide ${MEAL_TYPE_STYLE[meal.type] ?? 'bg-gray-100 text-gray-500'}`}>
-                          {t(`meals.type.${meal.type}`)}
-                        </span>
-                        {meal.gutFeedback && (
-                          <span className="text-sm rounded-full bg-white/60 shadow-sm px-1.5">{GUT_EMOJI[meal.gutFeedback]}</span>
-                        )}
-                      </div>
-                      <p className="text-[13px] font-medium text-gray-700 truncate">{meal.description}</p>
+          {/* 横スクロール (snap scroll) */}
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide">
+            {todayMeals && todayMeals.length > 0 ? (
+              <>
+                {todayMeals.map(meal => (
+                  <div
+                    key={meal.id}
+                    className="shrink-0 w-[200px] snap-start glass-panel rounded-2xl p-4 border border-black/[0.04] shadow-sm"
+                  >
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="text-[10px] font-display font-bold text-gray-400 uppercase tracking-wider">
+                        {t(`meals.type.${meal.type}`)}
+                      </span>
+                      {meal.gutFeedback && (
+                        <span className="text-sm">{GUT_EMOJI[meal.gutFeedback]}</span>
+                      )}
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-lg font-bold font-display text-gray-900 tracking-tight">
+                    <p className="text-[13px] font-medium text-gray-700 line-clamp-2 leading-relaxed mb-3">
+                      {meal.description}
+                    </p>
+                    <div className="flex items-end justify-between">
+                      <p className="text-[22px] font-display font-bold text-gray-900 tracking-tight leading-none">
                         {Math.round(meal.totalCalories)}
-                        <span className="text-[10px] font-normal text-gray-400 ml-0.5 uppercase">kcal</span>
+                        <span className="text-[9px] text-gray-400 ml-0.5 uppercase">kcal</span>
                       </p>
-                      <p className={`text-[11px] font-bold mt-0.5 uppercase tracking-wider drop-shadow-sm ${
-                        meal.ibsSafetyScore === 'safe'    ? 'text-emerald-500' :
-                        meal.ibsSafetyScore === 'caution' ? 'text-amber-500'   : 'text-red-500'
-                      }`}>
-                        {t(`meals.safety.${meal.ibsSafetyScore}`)}
-                      </p>
+                      {/* FODMAP ステッカー (Capwords style) */}
+                      {meal.fodmapLevel && (
+                        <span
+                          className={`text-[8px] font-display font-bold px-2 py-0.5 rounded-lg uppercase tracking-widest transform rotate-[-2deg] shadow-sm
+                            ${meal.fodmapLevel === 'low'      ? 'bg-emerald-100 text-emerald-600' :
+                              meal.fodmapLevel === 'moderate' ? 'bg-amber-100 text-amber-600'    :
+                              'bg-red-100 text-red-600'}`}
+                        >
+                          {meal.fodmapLevel}
+                        </span>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white/40">
-              <EmptyState title={t('home.no_meals')} />
-            </div>
-          )}
+                ))}
+              </>
+            ) : (
+              <div className="w-full py-4">
+                <EmptyState title={t('home.no_meals')} />
+              </div>
+            )}
+
+            {/* 食事追加カード */}
+            <button
+              onClick={() => navigate('/meals')}
+              className="shrink-0 w-[120px] snap-start rounded-2xl border-2 border-dashed border-black/[0.06] flex flex-col items-center justify-center gap-2 text-gray-300 hover:text-gray-400 hover:border-black/[0.1] transition-colors"
+            >
+              <Plus size={24} />
+              <span className="text-[10px] font-display font-bold uppercase tracking-wider">
+                {t('home.add_meal')}
+              </span>
+            </button>
+          </div>
         </div>
 
-        {/* ── AI相談ショートカット ─────────────────── */}
+        {/* ── AI相談ショートカット ──────────────────────── */}
         <m.button
           onClick={() => navigate('/chat')}
           whileTap={{ scale: 0.97 }}
           transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-          className="w-full flex items-center gap-4 bg-gradient-primary text-white rounded-[1.35rem] px-5 py-4 text-left shadow-glow mt-6 border border-white/20 relative overflow-hidden"
+          className="w-full flex items-center gap-4 bg-white/90 backdrop-blur-md rounded-2xl px-5 py-4 text-left border border-black/[0.04] shadow-sm"
         >
-          {/* Glass highlight effect overlay */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/10 to-white/0 pointer-events-none" />
-          
-          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md shrink-0 border border-white/30 shadow-inner">
-            <TrendingUp size={20} className="text-white drop-shadow-md" />
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ backgroundColor: 'var(--gradient-stable-from)' }}
+          >
+            <TrendingUp size={20} className="text-emerald-400" />
           </div>
-          <div className="flex-1 relative z-10">
-            <p className="text-sm font-bold font-display tracking-wide drop-shadow-sm">{t('home.ai_chat_title')}</p>
-            <p className="text-[12px] opacity-80 mt-0.5 font-medium">{t('home.ai_chat_desc')}</p>
+          <div className="flex-1">
+            <p className="text-[14px] font-display font-bold text-gray-800 tracking-tight">
+              {t('home.ai_chat_title')}
+            </p>
+            <p className="text-[12px] text-gray-400 mt-0.5">
+              {t('home.ai_chat_desc')}
+            </p>
           </div>
-          <ChevronRight size={18} className="opacity-80 shrink-0 relative z-10" />
+          <ChevronRight size={16} className="text-gray-300" />
         </m.button>
 
       </div>

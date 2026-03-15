@@ -7,6 +7,7 @@ import { useProfileStore } from '../../stores/useProfileStore'
 import { db } from '../../db/schema'
 import { APP_VERSION, RELEASE_DATE } from '../../config/version'
 import type { IBSType, Language, GutCheckTiming } from '../../types/entities'
+import { exportAllDataAsJSON, exportWeightLogsAsCSV } from '../../services/export/DataExportService'
 
 const IBS_TYPES: IBSType[] = ['IBS-D', 'IBS-C', 'IBS-M', 'IBS-U']
 const GUT_CHECK_TIMINGS: GutCheckTiming[] = ['notification', 'next_meal', 'both']
@@ -30,8 +31,13 @@ export default function SettingsPage() {
   const [triggers, setTriggers] = useState('')
   const [safeFoods, setSafeFoods] = useState('')
   const [claudeApiKey, setClaudeApiKey] = useState('')
+  const [aiProvider, setAiProvider] = useState<'claude' | 'openai' | 'gemini'>('claude')
+  const [openaiApiKey, setOpenaiApiKey] = useState('')
+  const [geminiApiKey, setGeminiApiKey] = useState('')
+  const [aiModel, setAiModel] = useState('')
   const [language, setLanguage] = useState<Language>('ja')
   const [gutCheckTiming, setGutCheckTiming] = useState<GutCheckTiming>('both')
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     if (profile) {
@@ -45,6 +51,10 @@ export default function SettingsPage() {
       setTriggers(profile.knownTriggers.join(', '))
       setSafeFoods(profile.safeFoods.join(', '))
       setClaudeApiKey(profile.claudeApiKey)
+      setAiProvider(profile.aiProvider ?? 'claude')
+      setOpenaiApiKey(profile.openaiApiKey ?? '')
+      setGeminiApiKey(profile.geminiApiKey ?? '')
+      setAiModel(profile.aiModel ?? '')
       setLanguage(profile.language)
       setGutCheckTiming(profile.gutCheckTiming ?? 'both')
     }
@@ -62,6 +72,10 @@ export default function SettingsPage() {
       knownTriggers: triggers.split(',').map(s => s.trim()).filter(Boolean),
       safeFoods: safeFoods.split(',').map(s => s.trim()).filter(Boolean),
       claudeApiKey,
+      aiProvider,
+      openaiApiKey: openaiApiKey.trim(),
+      geminiApiKey: geminiApiKey.trim(),
+      aiModel: aiModel.trim(),
       language,
       gutCheckTiming,
     })
@@ -119,7 +133,7 @@ export default function SettingsPage() {
 
   return (
     <AppShell title={t('settings.title')}>
-      <div className="p-4 space-y-5 pb-8">
+      <div className="p-4 space-y-5 pb-24">
 
         {/* 言語設定 */}
         <section>
@@ -137,22 +151,102 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* APIキー */}
-        <section>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('settings.api_key')}</h2>
-          <div className="relative">
-            <input
-              type={showKey ? 'text' : 'password'}
-              value={claudeApiKey}
-              onChange={e => setClaudeApiKey(e.target.value)}
-              placeholder={t('settings.api_key_placeholder')}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-            />
-            <button onClick={() => setShowKey(!showKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-              {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
+        {/* AI設定セクション */}
+        <section className="space-y-3">
+          <h2 className={sectionTitle}>{t('settings.ai_provider')}</h2>
+
+          {/* プロバイダー選択 */}
+          <div className="grid grid-cols-3 gap-2">
+            {(['claude', 'openai', 'gemini'] as const).map(p => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setAiProvider(p)}
+                className={`py-2.5 rounded-xl text-[12px] font-display font-bold uppercase tracking-wide transition-all ${
+                  aiProvider === p
+                    ? 'bg-gray-900 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`}
+              >
+                {p === 'claude' ? 'Claude' : p === 'openai' ? 'OpenAI' : 'Gemini'}
+              </button>
+            ))}
           </div>
-          <p className="text-xs text-gray-400 mt-1">{t('settings.api_key_help')}</p>
+
+          {/* APIキー入力（選択プロバイダーに応じて表示） */}
+          {aiProvider === 'claude' && (
+            <div className="space-y-1.5">
+              <label className={labelCls}>{t('settings.claude_api_key')}</label>
+              <div className="relative">
+                <input
+                  type={showKey ? 'text' : 'password'}
+                  value={claudeApiKey}
+                  onChange={e => setClaudeApiKey(e.target.value)}
+                  placeholder="sk-ant-..."
+                  className={inputCls}
+                />
+                <button type="button" onClick={() => setShowKey(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {aiProvider === 'openai' && (
+            <div className="space-y-1.5">
+              <label className={labelCls}>{t('settings.openai_api_key')}</label>
+              <div className="relative">
+                <input
+                  type={showKey ? 'text' : 'password'}
+                  value={openaiApiKey}
+                  onChange={e => setOpenaiApiKey(e.target.value)}
+                  placeholder="sk-..."
+                  className={inputCls}
+                />
+                <button type="button" onClick={() => setShowKey(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {aiProvider === 'gemini' && (
+            <div className="space-y-1.5">
+              <label className={labelCls}>{t('settings.gemini_api_key')}</label>
+              <div className="relative">
+                <input
+                  type={showKey ? 'text' : 'password'}
+                  value={geminiApiKey}
+                  onChange={e => setGeminiApiKey(e.target.value)}
+                  placeholder="AIza..."
+                  className={inputCls}
+                />
+                <button type="button" onClick={() => setShowKey(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* モデル名（任意） */}
+          <div className="space-y-1.5">
+            <label className={labelCls}>{t('settings.ai_model_optional')}</label>
+            <input
+              type="text"
+              value={aiModel}
+              onChange={e => setAiModel(e.target.value)}
+              placeholder={
+                aiProvider === 'claude' ? 'claude-sonnet-4-6' :
+                aiProvider === 'openai' ? 'gpt-4o-mini' :
+                'gemini-2.0-flash'
+              }
+              className={inputCls}
+            />
+            <p className="text-[11px] text-gray-400">{t('settings.ai_model_hint')}</p>
+          </div>
         </section>
 
         {/* プロフィール */}
@@ -226,7 +320,44 @@ export default function SettingsPage() {
           <p className="text-xs text-gray-400 mt-2">{t('settings.gut_check_timing_help')}</p>
         </section>
 
-        {/* データ管理 */}
+        {/* データ管理セクション */}
+        <section className="space-y-3">
+          <h2 className={sectionTitle}>{t('settings.data_management')}</h2>
+
+          <div className="bg-white rounded-2xl border border-black/[0.04] divide-y divide-black/[0.04]">
+            {/* JSONエクスポート */}
+            <button
+              type="button"
+              onClick={async () => {
+                setExporting(true)
+                try { await exportAllDataAsJSON() } finally { setExporting(false) }
+              }}
+              disabled={exporting}
+              className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              <Download size={18} className="text-gray-500 shrink-0" />
+              <div className="flex-1">
+                <p className="text-[14px] font-medium text-gray-800">{t('settings.export_json')}</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">{t('settings.export_json_desc')}</p>
+              </div>
+            </button>
+
+            {/* CSV体重エクスポート */}
+            <button
+              type="button"
+              onClick={async () => { await exportWeightLogsAsCSV() }}
+              className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-gray-50 transition-colors"
+            >
+              <Download size={18} className="text-gray-500 shrink-0" />
+              <div className="flex-1">
+                <p className="text-[14px] font-medium text-gray-800">{t('settings.export_csv')}</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">{t('settings.export_csv_desc')}</p>
+              </div>
+            </button>
+          </div>
+        </section>
+
+        {/* データ管理（旧） */}
         <section>
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('settings.data')}</h2>
           <div className="space-y-2">
@@ -273,7 +404,9 @@ export default function SettingsPage() {
   )
 }
 
-const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400'
+const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-emerald-400'
+const sectionTitle = 'text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2'
+const labelCls = 'text-xs text-gray-500 block'
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

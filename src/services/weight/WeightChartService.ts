@@ -1,6 +1,6 @@
 import { db } from '../../db/schema'
 import type { IBSStatus, WeightLog } from '../../types/entities'
-import { toDateStr } from '../../utils/date'
+import { toDateStr, subtractDays } from '../../utils/date'
 
 export interface ChartDataPoint {
   date: string
@@ -17,12 +17,6 @@ export interface WeightStats {
 }
 
 // ─── 内部ヘルパー ─────────────────────────────────────────────
-
-function subtractDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr)
-  d.setDate(d.getDate() - days)
-  return d.toISOString().slice(0, 10)
-}
 
 function computeMovingAvg(data: WeightLog[], index: number, window: number): number | null {
   const half = Math.floor(window / 2)

@@ -1,69 +1,137 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
-import { Send, AlertCircle } from 'lucide-react'
+import { Send, AlertCircle, Plus, Clock, Trash2 } from 'lucide-react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import AppShell from '../../components/layout/AppShell'
+import { BottomSheet } from '../../components/ui/BottomSheet'
 import { useProfileStore } from '../../stores/useProfileStore'
 import { sendMessage } from '../../services/ai/ClaudeService'
-import { uuid } from '../../utils/date'
-
-interface Message { id: string; role: 'user' | 'assistant'; content: string }
+import { createSession, addMessage, getMessages, getRecentSessions, deleteSession, generateTitle } from '../../services/chat/ChatService'
+import type { ChatSession, ChatMessage } from '../../types/entities'
 
 const QUICK_ACTIONS_JA = ['今日の食事を記録したい', '外食で何を食べるか相談したい', '体調が良くない', 'プロテインを選びたい']
 const QUICK_ACTIONS_EN = ['Log a meal', 'What should I eat out?', 'I feel unwell', 'Help me pick a protein']
+
+interface StreamingMsg extends ChatMessage {
+  isStreaming?: boolean
+}
 
 export default function ChatPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { profile } = useProfileStore()
-  const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState('')
+
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+  const [streamingContent, setStreamingContent] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
+  const [input, setInput] = useState('')
+  const [showHistory, setShowHistory] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<ChatSession | null>(null)
+
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   const quickActions = profile?.language === 'en' ? QUICK_ACTIONS_EN : QUICK_ACTIONS_JA
 
+  // DB LiveQuery: 現在のセッションのメッセージ（型はChatMessage[]|undefined）
+  const dbMessages = useLiveQuery(
+    () => currentSessionId ? getMessages(currentSessionId) : Promise.resolve([] as ChatMessage[]),
+    [currentSessionId]
+  )
+
+  // DB LiveQuery: セッション一覧
+  const sessions = useLiveQuery(
+    () => getRecentSessions(20),
+    []
+  )
+
+  // 表示用メッセージリスト（ストリーミング中は末尾に仮表示）
+  const safeMessages: ChatMessage[] = dbMessages ?? []
+  const displayMessages: StreamingMsg[] = [
+    ...safeMessages,
+    ...(isStreaming && streamingContent
+      ? [{ id: 'streaming', sessionId: currentSessionId ?? '', role: 'assistant' as const, content: streamingContent, timestamp: '', isStreaming: true }]
+      : [])
+  ]
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [displayMessages.length, streamingContent])
 
   const handleSend = async (text?: string) => {
     const content = (text ?? input).trim()
-    if (!content || isStreaming) return
-    if (!profile?.claudeApiKey) return
+    if (!content || isStreaming || !profile?.claudeApiKey) return
 
-    const userMsg: Message = { id: uuid(), role: 'user', content }
-    setMessages(prev => [...prev, userMsg])
+    // セッションがなければ新規作成
+    let sessionId = currentSessionId
+    if (!sessionId) {
+      const session = await createSession(generateTitle(content))
+      sessionId = session.id
+      setCurrentSessionId(sessionId)
+    }
+
+    // ユーザーメッセージをDBに保存
+    await addMessage(sessionId, 'user', content)
     setInput('')
     setIsStreaming(true)
+    setStreamingContent('')
 
-    const assistantId = uuid()
-    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '' }])
+    // 会話履歴を構築
+    const history = [...safeMessages, { id: '', sessionId, role: 'user' as const, content, timestamp: '' }]
+      .map(m => ({ role: m.role, content: m.content }))
 
-    const history = [...messages, userMsg].map(m => ({ role: m.role, content: m.content }))
+    let fullResponse = ''
 
     await sendMessage(history, profile, {
       onToken: (token) => {
-        setMessages(prev => prev.map(m =>
-          m.id === assistantId ? { ...m, content: m.content + token } : m
-        ))
+        fullResponse += token
+        setStreamingContent(fullResponse)
       },
-      onDone: () => setIsStreaming(false),
-      onError: (err) => {
-        const errMsg = err.message === 'NO_API_KEY' ? 'APIキーが設定されていません' : 'エラーが発生しました'
-        setMessages(prev => prev.map(m =>
-          m.id === assistantId ? { ...m, content: errMsg } : m
-        ))
+      onDone: async () => {
+        await addMessage(sessionId!, 'assistant', fullResponse)
+        setStreamingContent('')
+        setIsStreaming(false)
+      },
+      onError: async (err) => {
+        const errMsg = err.message === 'NO_API_KEY'
+          ? 'APIキーが設定されていません'
+          : 'エラーが発生しました'
+        await addMessage(sessionId!, 'assistant', errMsg)
+        setStreamingContent('')
         setIsStreaming(false)
       },
     })
+  }
+
+  const handleNewChat = () => {
+    setCurrentSessionId(null)
+    setStreamingContent('')
+    setShowHistory(false)
+  }
+
+  const handleSelectSession = (session: ChatSession) => {
+    setCurrentSessionId(session.id)
+    setShowHistory(false)
+  }
+
+  const handleDeleteSession = async (session: ChatSession) => {
+    await deleteSession(session.id)
+    if (currentSessionId === session.id) setCurrentSessionId(null)
+    setDeleteTarget(null)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
   }
 
+  const formatSessionDate = (iso: string) => {
+    if (!iso) return ''
+    const d = new Date(iso)
+    return `${d.getMonth() + 1}/${d.getDate()}`
+  }
+
+  // APIキー未設定画面
   if (!profile?.claudeApiKey) {
     return (
       <AppShell title={t('chat.title')}>
@@ -86,12 +154,34 @@ export default function ChatPage() {
     )
   }
 
+  const safeSessions: ChatSession[] = sessions ?? []
+
   return (
-    <AppShell title={t('chat.title')}>
+    <AppShell
+      title={t('chat.title')}
+      rightAction={
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={handleNewChat}
+            className="flex items-center gap-1 text-[12px] font-bold text-emerald-700 bg-emerald-100/70 hover:bg-emerald-200/80 active:scale-95 transition-all px-2.5 py-1.5 rounded-full shadow-sm"
+          >
+            <Plus size={13} strokeWidth={2.5} />
+            {t('chat.new_chat', { defaultValue: '新規' })}
+          </button>
+          <button
+            onClick={() => setShowHistory(true)}
+            className="flex items-center gap-1 text-[12px] font-bold text-gray-600 bg-gray-100/70 hover:bg-gray-200/80 active:scale-95 transition-all px-2.5 py-1.5 rounded-full shadow-sm"
+          >
+            <Clock size={13} />
+            {t('chat.history', { defaultValue: '履歴' })}
+          </button>
+        </div>
+      }
+    >
       <div className="flex flex-col h-[calc(100svh-7rem)] relative bg-[#FAFAF7]">
         {/* 背景のほのかな光 */}
         <div className="absolute top-20 right-[-10%] w-72 h-72 bg-emerald-300/10 blur-[100px] rounded-full pointer-events-none" />
-        
+
         {/* 免責 */}
         <div className="px-4 py-2 bg-amber-50/80 backdrop-blur-md border-b border-amber-500/10 relative z-10">
           <p className="text-[11px] font-bold text-amber-600/80 text-center tracking-wide font-display">{t('chat.disclaimer')}</p>
@@ -99,7 +189,7 @@ export default function ChatPage() {
 
         {/* メッセージエリア */}
         <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 relative z-10">
-          {messages.length === 0 && (
+          {displayMessages.length === 0 && (
             <div className="space-y-4 mt-4">
               <p className="text-sm font-medium text-gray-400 text-center">{t('chat.subtitle')}</p>
               <div className="grid grid-cols-2 gap-3">
@@ -116,14 +206,14 @@ export default function ChatPage() {
             </div>
           )}
 
-          {messages.map(msg => (
+          {displayMessages.map(msg => (
             <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[85%] px-4 py-3 rounded-[1.25rem] text-[15px] whitespace-pre-wrap leading-relaxed shadow-sm ${
                 msg.role === 'user'
                   ? 'bg-gradient-primary text-white rounded-br-sm shadow-emerald-900/10'
                   : 'glass-panel border border-black/[0.03] text-gray-800 rounded-bl-sm'
               }`}>
-                {msg.content || (isStreaming ? <span className="animate-pulse opacity-50">...</span> : '')}
+                {msg.content || (msg.isStreaming ? <span className="animate-pulse opacity-50">...</span> : '')}
               </div>
             </div>
           ))}
@@ -131,7 +221,10 @@ export default function ChatPage() {
         </div>
 
         {/* 入力エリア */}
-        <div className="border-t border-black/[0.04] bg-white/70 backdrop-blur-xl px-4 py-3 pb-safe flex gap-3 items-end relative z-10 shadow-[0_-4px_24px_rgba(0,0,0,0.02)]">
+        <div
+          className="border-t border-black/[0.04] bg-white/70 backdrop-blur-xl px-4 pt-3 flex gap-3 items-end relative z-10 shadow-[0_-4px_24px_rgba(0,0,0,0.02)]"
+          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+        >
           <textarea
             ref={inputRef}
             value={input}
@@ -151,6 +244,80 @@ export default function ChatPage() {
           </button>
         </div>
       </div>
+
+      {/* 履歴 BottomSheet */}
+      <BottomSheet
+        open={showHistory}
+        onOpenChange={(open) => { if (!open) setShowHistory(false) }}
+      >
+        <div className="space-y-3 pb-2">
+          <h2 className="text-base font-semibold text-gray-900">
+            {t('chat.history', { defaultValue: '履歴' })}
+          </h2>
+
+          {safeSessions.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-6">
+              {t('chat.no_history', { defaultValue: 'まだ相談履歴がありません' })}
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {safeSessions.map(session => (
+                <div
+                  key={session.id}
+                  className={`flex items-center gap-3 px-3 py-3 rounded-2xl transition-colors cursor-pointer ${
+                    currentSessionId === session.id
+                      ? 'bg-emerald-50 border border-emerald-200'
+                      : 'bg-gray-50 hover:bg-gray-100'
+                  }`}
+                  onClick={() => handleSelectSession(session)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium text-gray-800 truncate">{session.title}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">{formatSessionDate(session.updatedAt)}</p>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setDeleteTarget(session) }}
+                    className="p-1.5 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </BottomSheet>
+
+      {/* 削除確認 BottomSheet */}
+      <BottomSheet
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+      >
+        {deleteTarget && (
+          <div className="space-y-4 pb-2">
+            <p className="text-base font-semibold text-gray-900 text-center">
+              {t('chat.delete_session', { defaultValue: 'この会話を削除' })}
+            </p>
+            <p className="text-sm text-gray-500 text-center">
+              「{deleteTarget.title}」{t('chat.delete_confirm', { defaultValue: '削除しますか？' })}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleDeleteSession(deleteTarget)}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-[1.25rem] py-3.5 text-[15px] font-bold shadow-md transition-colors font-display"
+              >
+                {t('common.delete')}
+              </button>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-[1.25rem] py-3.5 text-[15px] font-bold transition-colors font-display"
+              >
+                {t('common.cancel')}
+              </button>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
     </AppShell>
   )
 }

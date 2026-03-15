@@ -46,6 +46,10 @@
     "voice_prompt": "食べたものを話してください",
     "voice_listening": "聞いています...",
     "voice_not_supported": "このブラウザでは音声入力が使えません",
+    "voice_tap_to_start": "タップして音声入力を開始",
+    "voice_pwa_title": "音声入力はSafariでご利用ください",
+    "voice_pwa_desc": "ホーム画面から追加したアプリでは、iOSの制限により音声入力が使用できません。Safariで開くとご利用いただけます。",
+    "voice_open_safari": "Safariで開く",
     "next": "次へ",
     "send_to_ai": "AIで分析する",
     "ai_fill": "AIで栄養素を自動入力 ✨",
@@ -126,7 +130,12 @@
       "meal_advice": "食事の提案",
       "ibs_consult": "体調相談",
       "supplement": "サプリ相談"
-    }
+    },
+    "new_chat": "新しい相談",
+    "history": "履歴",
+    "delete_session": "この会話を削除",
+    "delete_confirm": "削除しますか？",
+    "no_history": "まだ相談履歴がありません"
   },
   "settings": {
     "title": "設定",
@@ -162,7 +171,18 @@
     "gut_check_timing_next_meal": "🍽️ 次回食事のときに確認",
     "gut_check_timing_both": "✅ 両方（通知＋次回食事時）",
     "gut_check_timing_help": "食後のお腹の調子を記録するタイミングを選んでください",
-    "unmatched_count": "{{count}}件"
+    "unmatched_count": "{{count}}件",
+    "ai_provider": "AI設定",
+    "claude_api_key": "Claude APIキー",
+    "openai_api_key": "OpenAI APIキー",
+    "gemini_api_key": "Gemini APIキー",
+    "ai_model_optional": "モデル名（省略可）",
+    "ai_model_hint": "空欄の場合はデフォルトモデルを使用",
+    "data_management": "データ管理",
+    "export_json": "全データをエクスポート",
+    "export_json_desc": "バックアップ用JSON（iOS ITP対策）",
+    "export_csv": "体重ログをCSV出力",
+    "export_csv_desc": "Excelや他アプリで開けます"
   },
   "onboarding": {
     "welcome": "FutoLabへようこそ",

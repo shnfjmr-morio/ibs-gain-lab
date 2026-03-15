@@ -13,5 +13,20 @@ export async function recalculateDailyLog(date: string = toDateStr()): Promise<v
     }),
     { totalCalories: 0, totalProtein: 0, totalFat: 0, totalCarbs: 0 }
   )
-  await db.dailyLogs.put({ date, ...totals, updatedAt: nowIso() })
+
+  const updates: Parameters<typeof db.dailyLogs.put>[0] = {
+    date,
+    ...totals,
+    updatedAt: nowIso(),
+  }
+
+  // WeightLog の ibsStatus を DailyLog に同期
+  const weightLog = await db.weightLogs
+    .where('date').equals(date)
+    .reverse().first()
+  if (weightLog?.ibsStatus) {
+    updates.ibsStatus = weightLog.ibsStatus
+  }
+
+  await db.dailyLogs.put(updates)
 }

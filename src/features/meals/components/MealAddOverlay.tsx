@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom'
 import { m } from 'motion/react'
 import { useTranslation } from 'react-i18next'
-import { Mic, MicOff, ChevronRight } from 'lucide-react'
+import { Mic, MicOff, ChevronRight, ExternalLink } from 'lucide-react'
 import { MEAL_TYPES } from '../constants'
 import type { MealAddFlowReturn } from '../hooks/useMealAddFlow'
 
@@ -14,6 +14,7 @@ type MealAddOverlayProps = Pick<
   | 'description'
   | 'setDescription'
   | 'voiceSupported'
+  | 'isPWAStandalone'
   | 'isListening'
   | 'startListening'
   | 'stopListening'
@@ -29,6 +30,7 @@ export function MealAddOverlay({
   description,
   setDescription,
   voiceSupported,
+  isPWAStandalone,
   isListening,
   startListening,
   stopListening,
@@ -37,12 +39,20 @@ export function MealAddOverlay({
 }: MealAddOverlayProps) {
   const { t } = useTranslation()
 
+  /** タップでトグル: 聴取中なら止める、停止中なら開始 */
+  const handleVoiceToggle = () => {
+    if (isListening) {
+      stopListening()
+    } else {
+      startListening()
+    }
+  }
+
   return createPortal(
     <div
       className="fixed inset-0 z-[200] bg-slate-50 flex flex-col overflow-hidden"
       style={{
         paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
       {/* Subtle background glow */}
@@ -81,10 +91,10 @@ export function MealAddOverlay({
             <button
               key={mode}
               onClick={() => setInputMode(mode)}
-              disabled={mode === 'voice' && !voiceSupported}
+              disabled={mode === 'voice' && !voiceSupported && !isPWAStandalone}
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
                 inputMode === mode ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'
-              }`}
+              } disabled:opacity-40`}
             >
               {t(`meals.${mode}_input`)}
             </button>
@@ -107,22 +117,48 @@ export function MealAddOverlay({
         {/* 音声入力 */}
         {inputMode === 'voice' && (
           <div className="text-center space-y-3">
-            <m.button
-              onPointerDown={startListening}
-              onPointerUp={stopListening}
-              animate={isListening ? { scale: 1.1 } : { scale: 1 }}
-              className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto shadow-lg ${
-                isListening ? 'bg-red-500' : 'bg-emerald-600'
-              }`}
-            >
-              {isListening
-                ? <MicOff size={32} className="text-white" />
-                : <Mic size={32} className="text-white" />
-              }
-            </m.button>
-            <p className="text-sm text-gray-400">
-              {isListening ? t('meals.voice_listening') : t('meals.voice_prompt')}
-            </p>
+            {/* PWAスタンドアロン時: Safari誘導バナー */}
+            {isPWAStandalone ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-4 text-left space-y-3">
+                <p className="text-sm font-semibold text-amber-800">
+                  {t('meals.voice_pwa_title')}
+                </p>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  {t('meals.voice_pwa_desc')}
+                </p>
+                <a
+                  href={window.location.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 underline underline-offset-2"
+                >
+                  <ExternalLink size={13} />
+                  {t('meals.voice_open_safari')}
+                </a>
+              </div>
+            ) : (
+              <>
+                {/* タップでトグルするマイクボタン */}
+                <m.button
+                  onClick={handleVoiceToggle}
+                  animate={isListening ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+                  transition={isListening ? { duration: 1.2, repeat: Infinity, ease: 'easeInOut' } : { type: 'spring', stiffness: 400, damping: 25 }}
+                  className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto shadow-lg transition-colors ${
+                    isListening ? 'bg-red-500 ring-4 ring-red-300/60' : 'bg-emerald-600'
+                  }`}
+                >
+                  {isListening
+                    ? <MicOff size={32} className="text-white" />
+                    : <Mic size={32} className="text-white" />
+                  }
+                </m.button>
+                <p className="text-sm text-gray-400">
+                  {isListening ? t('meals.voice_listening') : t('meals.voice_tap_to_start')}
+                </p>
+              </>
+            )}
+
+            {/* 認識済みテキストのプレビュー */}
             {description && (
               <div className="bg-gray-50 rounded-xl px-3 py-2 text-sm text-gray-700 text-left">
                 {description}
@@ -133,7 +169,10 @@ export function MealAddOverlay({
       </div>
 
       {/* 固定フッター */}
-      <div className="relative z-10 px-5 py-4 border-t border-black/[0.04] bg-white/50 backdrop-blur-md">
+      <div
+        className="relative z-10 px-5 pt-4 border-t border-black/[0.04] bg-white/50 backdrop-blur-md"
+        style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+      >
         <m.button
           data-motion
           onClick={handleNext}
@@ -148,6 +187,7 @@ export function MealAddOverlay({
         </m.button>
       </div>
     </div>,
-    document.getElementById('root')!
+    document.body
+
   )
 }

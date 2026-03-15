@@ -6,7 +6,7 @@ import { haptic } from '../utils/haptics'
 const TABS = [...TAB_ORDER]
 const MIN_SWIPE_X = 55
 const RATIO       = 1.4
-const EDGE_GUARD  = 20
+const EDGE_GUARD  = 35
 
 export function useSwipeNav() {
   const navigate = useNavigate()

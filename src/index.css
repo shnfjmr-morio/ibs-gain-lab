@@ -137,3 +137,96 @@ button:not([data-motion]):not([disabled]):active {
   border-radius: 9999px;
   margin: 0 auto;
 }
+
+/* ========================================
+   IBS Gain Lab v2 -- Design System Additions
+   ======================================== */
+
+/* --- State-reactive Gradient System --- */
+
+:root {
+  --gradient-stable-from: #0D3B36;
+  --gradient-stable-via:  #143D3A;
+  --gradient-stable-to:   #1A2744;
+  --gradient-stable-accent: #34D399;
+
+  --gradient-mild-from: #3D2E0A;
+  --gradient-mild-via:  #4A3311;
+  --gradient-mild-to:   #2E2413;
+  --gradient-mild-accent: #FBBF24;
+
+  --gradient-active-from: #3D1219;
+  --gradient-active-via:  #451520;
+  --gradient-active-to:   #2D1422;
+  --gradient-active-accent: #F87171;
+
+  --gradient-recovering-from: #1E1740;
+  --gradient-recovering-via:  #1A2044;
+  --gradient-recovering-to:   #142E3D;
+  --gradient-recovering-accent: #818CF8;
+
+  --surface-primary: #FAFAF7;
+  --surface-glass: rgba(255, 255, 255, 0.72);
+  --surface-glass-border: rgba(255, 255, 255, 0.55);
+
+  --accent-primary: #34D399;
+  --accent-secondary: #818CF8;
+
+  --font-display: 'Outfit', 'Inter', 'Noto Sans JP', sans-serif;
+  --font-body: 'Inter', 'Noto Sans JP', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+}
+
+.bg-state-gradient {
+  background: linear-gradient(
+    145deg,
+    var(--state-from) 0%,
+    var(--state-via) 50%,
+    var(--state-to) 100%
+  );
+  transition: background 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-ibs-status="stable"] {
+  --state-from: var(--gradient-stable-from);
+  --state-via:  var(--gradient-stable-via);
+  --state-to:   var(--gradient-stable-to);
+  --state-accent: var(--gradient-stable-accent);
+}
+
+[data-ibs-status="mild"] {
+  --state-from: var(--gradient-mild-from);
+  --state-via:  var(--gradient-mild-via);
+  --state-to:   var(--gradient-mild-to);
+  --state-accent: var(--gradient-mild-accent);
+}
+
+[data-ibs-status="active"] {
+  --state-from: var(--gradient-active-from);
+  --state-via:  var(--gradient-active-via);
+  --state-to:   var(--gradient-active-to);
+  --state-accent: var(--gradient-active-accent);
+}
+
+[data-ibs-status="recovering"] {
+  --state-from: var(--gradient-recovering-from);
+  --state-via:  var(--gradient-recovering-via);
+  --state-to:   var(--gradient-recovering-to);
+  --state-accent: var(--gradient-recovering-accent);
+}
+
+/* --- Scrollbar hide --- */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* --- View Transitions --- */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.25s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}

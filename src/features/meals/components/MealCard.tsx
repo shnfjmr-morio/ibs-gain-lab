@@ -2,7 +2,7 @@ import { m } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { Pencil } from 'lucide-react'
 import { listItemVariants } from '../../../utils/motion'
-import { fodmapColor, safetyColor, gutEmoji } from '../constants'
+import { safetyColor, gutEmoji } from '../constants'
 import type { Meal } from '../../../types/entities'
 
 interface MealCardProps {
@@ -16,8 +16,18 @@ export function MealCard({ meal, onEdit }: MealCardProps) {
     <m.div
       key={meal.id}
       variants={listItemVariants}
-      className="glass-panel rounded-3xl p-5 shadow-sm border border-black/[0.03]"
+      className="glass-panel rounded-3xl p-5 shadow-sm border border-black/[0.03] relative"
     >
+      {/* カード右上に絶対配置のステッカー */}
+      <div className="absolute -top-2 -right-2 z-10">
+        <span className={`inline-block text-[9px] font-display font-bold px-2.5 py-1 rounded-xl uppercase tracking-[0.1em] transform rotate-[6deg] shadow-md border border-white/60 ${
+          meal.fodmapLevel === 'low'      ? 'bg-emerald-400 text-white' :
+          meal.fodmapLevel === 'moderate' ? 'bg-amber-400 text-white' :
+          'bg-red-400 text-white'
+        }`}>
+          {meal.fodmapLevel}
+        </span>
+      </div>
       <div className="flex justify-between items-start gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
@@ -60,9 +70,6 @@ export function MealCard({ meal, onEdit }: MealCardProps) {
               <Pencil size={14} />
             </m.button>
           </div>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-display tracking-widest shadow-sm border border-white/40 ${fodmapColor[meal.fodmapLevel]}`}>
-            {meal.fodmapLevel.toUpperCase()}
-          </span>
         </div>
       </div>
       {meal.totalCalories > 0 && (

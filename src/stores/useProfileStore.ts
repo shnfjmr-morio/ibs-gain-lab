@@ -28,6 +28,10 @@ const DEFAULT_PROFILE: UserProfile = {
   language: 'ja',
   gutCheckTiming: 'both',
   claudeApiKey: '',
+  aiProvider: 'claude' as const,
+  openaiApiKey: '',
+  geminiApiKey: '',
+  aiModel: '',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 }

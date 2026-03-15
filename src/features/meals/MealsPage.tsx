@@ -70,6 +70,7 @@ export default function MealsPage() {
           description={addFlow.description}
           setDescription={addFlow.setDescription}
           voiceSupported={addFlow.voiceSupported}
+          isPWAStandalone={addFlow.isPWAStandalone}
           isListening={addFlow.isListening}
           startListening={addFlow.startListening}
           stopListening={addFlow.stopListening}

@@ -12,6 +12,7 @@ import { listItemVariants, staggerContainer } from '../../utils/motion'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { SuccessModal } from '../../components/ui/SuccessModal'
 import { useProfileStore } from '../../stores/useProfileStore'
+import { WeightChartSection } from './WeightChartSection'
 import type { WeightLog, IBSStatus } from '../../types/entities'
 
 const IBS_STATUSES: IBSStatus[] = ['stable', 'mild', 'active', 'recovering']
@@ -85,6 +86,11 @@ export default function WeightPage() {
           <Plus size={20} className="relative z-10" strokeWidth={2.5} />
           <span className="relative z-10 text-[15px] tracking-wide font-display">{t('weight.add')}</span>
         </m.button>
+
+        {/* 体重推移グラフ（2件以上の場合のみ表示） */}
+        {logs && logs.length >= 2 && (
+          <WeightChartSection logs={logs} targetWeightKg={profile?.targetWeightKg} />
+        )}
 
         {logs && logs.length > 0 ? (
           <m.div variants={staggerContainer} initial="initial" animate="animate" className="space-y-3">

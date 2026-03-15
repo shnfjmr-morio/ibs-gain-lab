@@ -1,4 +1,5 @@
 import { FODMAP_DB } from '../../data/fodmap/db'
+import { DISH_ALIASES } from '../../data/fodmap/dishAliases'
 
 export interface NutritionEstimate {
   calories: number
@@ -98,7 +99,36 @@ export function estimateNutrition(description: string): NutritionEstimate | null
     }
   }
 
-  if (matched === 0) return null
+  // DBで直接ヒットしなかった場合、dishAliasesのestimatedCalories/estimatedProteinで補完
+  if (matched === 0) {
+    const normalizedText = text
+      .replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+      .replace(/[\u30A1-\u30F6]/g, s => String.fromCharCode(s.charCodeAt(0) - 0x60))
+      .replace(/[\s　]+/g, ' ')
+      .trim()
+
+    for (const alias of DISH_ALIASES) {
+      const normalize = (t: string) => t
+        .toLowerCase()
+        .replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+        .replace(/[\u30A1-\u30F6]/g, s => String.fromCharCode(s.charCodeAt(0) - 0x60))
+        .replace(/[\s　]+/g, ' ')
+        .trim()
+
+      const matched = alias.keywords.some(kw => normalizedText.includes(normalize(kw)))
+      if (matched && alias.estimatedCalories != null) {
+        return {
+          calories: alias.estimatedCalories,
+          protein:  alias.estimatedProtein ?? 0,
+          fat:      0,
+          carbs:    0,
+          weightG:  0,
+          source:   'default',
+        }
+      }
+    }
+    return null
+  }
 
   return {
     calories: totalCalories,

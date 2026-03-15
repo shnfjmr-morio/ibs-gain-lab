@@ -62,7 +62,7 @@ export function BottomSheet({
               'fixed bottom-0 left-0 right-0 z-[100]',
               'max-w-[480px] mx-auto',
               'bg-[#FAFAF7] rounded-t-[28px]',
-              'max-h-[90dvh] outline-none',
+              'max-h-[85vh] outline-none',
               'flex flex-col',
               className
             )}

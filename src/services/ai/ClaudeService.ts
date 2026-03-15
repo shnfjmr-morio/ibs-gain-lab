@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { db } from '../../db/schema'
 import type { UserProfile, WeightLog } from '../../types/entities'
 import { toDateStr } from '../../utils/date'
+import { callAI } from './AIProviderService'
 
 const MODEL = import.meta.env.VITE_CLAUDE_MODEL ?? 'claude-sonnet-4-6'
 
@@ -112,31 +113,51 @@ export async function sendMessage(
   profile: UserProfile,
   callbacks: StreamCallbacks
 ): Promise<void> {
-  if (!profile.claudeApiKey) {
-    callbacks.onError(new Error('NO_API_KEY'))
-    return
-  }
+  const provider = profile.aiProvider ?? 'claude'
 
-  const client = buildClient(profile.claudeApiKey)
   const context = await buildContext(profile.language)
   const systemPrompt = buildSystemPrompt(profile, context, profile.language)
 
-  try {
-    const stream = await client.messages.stream({
-      model: MODEL,
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages,
-    })
-
-    for await (const chunk of stream) {
-      if (
-        chunk.type === 'content_block_delta' &&
-        chunk.delta.type === 'text_delta'
-      ) {
-        callbacks.onToken(chunk.delta.text)
-      }
+  // Claude: ストリーミングを維持
+  if (provider === 'claude') {
+    if (!profile.claudeApiKey) {
+      callbacks.onError(new Error('NO_API_KEY'))
+      return
     }
+
+    const client = buildClient(profile.claudeApiKey)
+
+    try {
+      const stream = await client.messages.stream({
+        model: profile.aiModel ?? MODEL,
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages,
+      })
+
+      for await (const chunk of stream) {
+        if (
+          chunk.type === 'content_block_delta' &&
+          chunk.delta.type === 'text_delta'
+        ) {
+          callbacks.onToken(chunk.delta.text)
+        }
+      }
+      callbacks.onDone()
+    } catch (err) {
+      callbacks.onError(err instanceof Error ? err : new Error(String(err)))
+    }
+    return
+  }
+
+  // OpenAI / Gemini: 非ストリームフォールバック
+  try {
+    const aiMessages = [
+      { role: 'system' as const, content: systemPrompt },
+      ...messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+    ]
+    const response = await callAI(aiMessages, profile, { maxTokens: 1024 })
+    callbacks.onToken(response.content)
     callbacks.onDone()
   } catch (err) {
     callbacks.onError(err instanceof Error ? err : new Error(String(err)))
@@ -172,9 +193,6 @@ export async function analyzeMeal(
   description: string,
   profile: UserProfile
 ): Promise<AnalyzeMealResult> {
-  if (!profile.claudeApiKey) throw new Error('NO_API_KEY')
-
-  const client = buildClient(profile.claudeApiKey)
   const lang = profile.language
 
   const systemPrompt = lang === 'en'
@@ -187,14 +205,16 @@ User: IBS type ${profile.ibsType}, triggers: ${profile.knownTriggers.join(', ') 
     ? `Analyze this meal. Return exactly this JSON with no other text:\n{"calories": number, "protein": number, "fat": number, "carbs": number, "fodmapLevel": "low"|"moderate"|"high", "ibsSafety": "safe"|"caution"|"risky", "note": "brief IBS note"}\n\nMeal: ${description}`
     : `この食事を分析してください。以下のJSON形式のみを返してください（他のテキスト不要）:\n{"calories": number, "protein": number, "fat": number, "carbs": number, "fodmapLevel": "low"|"moderate"|"high", "ibsSafety": "safe"|"caution"|"risky", "note": "IBS向けの一言メモ"}\n\n食事: ${description}`
 
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 512,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: userPrompt }],
-  })
+  const response = await callAI(
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    profile,
+    { maxTokens: 512 }
+  )
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : ''
+  const text = response.content
 
   const jsonStr = extractJsonFromText(text)
   const data = JSON.parse(jsonStr) as Partial<AnalyzeMealResult>
