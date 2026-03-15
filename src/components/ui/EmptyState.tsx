@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react'
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 
 interface Props {
   title: string
@@ -9,7 +9,7 @@ interface Props {
 
 export function EmptyState({ title, description, action }: Props) {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
@@ -26,6 +26,6 @@ export function EmptyState({ title, description, action }: Props) {
         <p className="text-sm text-gray-400 mb-4">{description}</p>
       )}
       {action && <div>{action}</div>}
-    </motion.div>
+    </m.div>
   )
 }

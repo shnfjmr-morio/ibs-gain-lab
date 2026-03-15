@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { Plus } from 'lucide-react'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -75,7 +75,7 @@ export default function WeightPage() {
   return (
     <AppShell title={t('weight.title')}>
       <div className="p-4 space-y-3">
-        <motion.button data-motion
+        <m.button data-motion
           onClick={() => setShowAdd(true)}
           whileTap={{ scale: 0.97 }}
           transition={{ type: 'spring', stiffness: 400, damping: 25 }}
@@ -84,12 +84,12 @@ export default function WeightPage() {
           <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 pointer-events-none" />
           <Plus size={20} className="relative z-10" strokeWidth={2.5} />
           <span className="relative z-10 text-[15px] tracking-wide font-display">{t('weight.add')}</span>
-        </motion.button>
+        </m.button>
 
         {logs && logs.length > 0 ? (
-          <motion.div variants={staggerContainer} initial="initial" animate="animate" className="space-y-3">
+          <m.div variants={staggerContainer} initial="initial" animate="animate" className="space-y-3">
             {logs.map(log => (
-              <motion.div key={log.id} variants={listItemVariants}
+              <m.div key={log.id} variants={listItemVariants}
                 className="glass-panel rounded-3xl p-5 shadow-sm border border-black/[0.03]">
                 <div className="flex justify-between items-center">
                   <div>
@@ -107,9 +107,9 @@ export default function WeightPage() {
                   </span>
                 </div>
                 {log.notes && <p className="text-[13px] text-gray-600 mt-3 pt-3 border-t border-black/[0.04] leading-relaxed">{log.notes}</p>}
-              </motion.div>
+              </m.div>
             ))}
-          </motion.div>
+          </m.div>
         ) : (
           <EmptyState title={t('weight.no_logs')} />
         )}
@@ -165,7 +165,7 @@ export default function WeightPage() {
             </div>
           </div>
 
-          <motion.button data-motion
+          <m.button data-motion
             onClick={handleSave}
             disabled={!weightKg}
             whileTap={weightKg ? { scale: 0.97 } : undefined}
@@ -174,7 +174,7 @@ export default function WeightPage() {
           >
             <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 pointer-events-none" />
             <span className="relative z-10">{t('weight.save')}</span>
-          </motion.button>
+          </m.button>
         </div>
       </BottomSheet>
 

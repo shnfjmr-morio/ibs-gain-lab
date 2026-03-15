@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import { Plus, TrendingUp, AlertCircle, ChevronRight } from 'lucide-react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import AppShell from '../../components/layout/AppShell'
@@ -191,7 +191,7 @@ export default function HomePage() {
         </div>
 
         {/* ── AI相談ショートカット ─────────────────── */}
-        <motion.button
+        <m.button
           onClick={() => navigate('/chat')}
           whileTap={{ scale: 0.97 }}
           transition={{ type: 'spring', stiffness: 400, damping: 25 }}
@@ -208,7 +208,7 @@ export default function HomePage() {
             <p className="text-[12px] opacity-80 mt-0.5 font-medium">{t('home.ai_chat_desc')}</p>
           </div>
           <ChevronRight size={18} className="opacity-80 shrink-0 relative z-10" />
-        </motion.button>
+        </m.button>
 
       </div>
     </AppShell>

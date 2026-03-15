@@ -1,4 +1,4 @@
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { Smile, Meh, Frown } from 'lucide-react'
 import { haptic } from '../../utils/haptics'
@@ -25,7 +25,7 @@ export function GutStatusButton({ value, isActive, onSelect }: Props) {
   const { icon: Icon, activeColor, activeBg } = CONFIG[value]
 
   return (
-    <motion.button
+    <m.button
       type="button"
       onClick={() => { haptic('light'); onSelect(value) }}
       whileTap={{ scale: 0.9 }}
@@ -41,6 +41,6 @@ export function GutStatusButton({ value, isActive, onSelect }: Props) {
       <span className={`text-xs font-medium ${isActive ? activeColor : 'text-gray-600'}`}>
         {t(`gut.${value}`)}
       </span>
-    </motion.button>
+    </m.button>
   )
 }

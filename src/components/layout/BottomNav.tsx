@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import { Home, Utensils, MessageSquare, Activity, Settings } from 'lucide-react'
 import { useNavStore } from '../../stores/useNavStore'
 
@@ -47,7 +47,7 @@ export default function BottomNav() {
               className="flex-1 flex flex-col items-center py-2.5 gap-1 relative active:scale-95 transition-all duration-200"
             >
               {active && (
-                <motion.span
+                <m.span
                   layoutId="nav-indicator"
                   className="absolute top-0 left-1/2 -translate-x-1/2 h-1 w-8 rounded-b-full bg-gradient-primary shadow-[0_2px_8px_rgba(61,143,133,0.4)]"
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}

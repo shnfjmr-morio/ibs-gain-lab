@@ -1,5 +1,5 @@
 import { forwardRef } from 'react'
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import { useNavStore } from '../stores/useNavStore'
 import { pageVariants, PAGE_TRANSITION } from '../utils/motion'
 
@@ -13,7 +13,7 @@ const PageWrapper = forwardRef<HTMLDivElement, PageWrapperProps>(
     const setIsAnimating = useNavStore((s) => s.setIsAnimating)
 
     return (
-      <motion.div
+      <m.div
         ref={ref}
         custom={direction}
         variants={pageVariants}
@@ -32,7 +32,7 @@ const PageWrapper = forwardRef<HTMLDivElement, PageWrapperProps>(
         }}
       >
         {children}
-      </motion.div>
+      </m.div>
     )
   }
 )

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, m } from 'motion/react'
 import { haptic } from '../../utils/haptics'
 
 interface Props {
@@ -21,7 +21,7 @@ export function SuccessModal({ open, onClose, title, description }: Props) {
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -29,7 +29,7 @@ export function SuccessModal({ open, onClose, title, description }: Props) {
           className="fixed inset-0 z-[300] flex items-center justify-center bg-black/30"
           onClick={onClose}
         >
-          <motion.div
+          <m.div
             initial={{ scale: 0.7, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0 }}
@@ -47,8 +47,8 @@ export function SuccessModal({ open, onClose, title, description }: Props) {
             {description && (
               <p className="text-sm text-gray-500">{description}</p>
             )}
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   )

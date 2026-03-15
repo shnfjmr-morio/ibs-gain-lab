@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AnimatePresence, MotionConfig } from 'motion/react'
+import { LazyMotionProvider } from './components/LazyMotionProvider'
 import { useProfileStore } from './stores/useProfileStore'
 import { useNavStore } from './stores/useNavStore'
 import { useDirectionSync } from './hooks/useDirectionSync'
@@ -100,6 +101,7 @@ export default function App() {
   }
 
   return (
+    <LazyMotionProvider>
     <MotionConfig reducedMotion="user">
       <BrowserRouter>
         {/* ページ遷移コンテナ: 相対位置で PageWrapper の absolute を受け止める */}
@@ -118,5 +120,6 @@ export default function App() {
         )}
       </BrowserRouter>
     </MotionConfig>
+    </LazyMotionProvider>
   )
 }
