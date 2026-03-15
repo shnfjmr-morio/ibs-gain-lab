@@ -61,7 +61,10 @@ export default function ChatPage() {
 
   const handleSend = async (text?: string) => {
     const content = (text ?? input).trim()
-    if (!content || isStreaming || !profile?.claudeApiKey) return
+    const activeKey = profile?.aiProvider === 'gemini' ? profile?.geminiApiKey
+      : profile?.aiProvider === 'openai' ? profile?.openaiApiKey
+      : profile?.claudeApiKey
+    if (!content || isStreaming || !activeKey) return
 
     // セッションがなければ新規作成
     let sessionId = currentSessionId
@@ -83,7 +86,7 @@ export default function ChatPage() {
 
     let fullResponse = ''
 
-    await sendMessage(history, profile, {
+    await sendMessage(history, profile!, {
       onToken: (token) => {
         fullResponse += token
         setStreamingContent(fullResponse)
@@ -132,7 +135,10 @@ export default function ChatPage() {
   }
 
   // APIキー未設定画面
-  if (!profile?.claudeApiKey) {
+  const activeKey = profile?.aiProvider === 'gemini' ? profile?.geminiApiKey
+    : profile?.aiProvider === 'openai' ? profile?.openaiApiKey
+    : profile?.claudeApiKey
+  if (!activeKey) {
     return (
       <AppShell title={t('chat.title')}>
         <div className="flex flex-col items-center justify-center h-full p-8 text-center gap-4 relative overflow-hidden">

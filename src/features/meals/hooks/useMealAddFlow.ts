@@ -83,7 +83,9 @@ export function useMealAddFlow(viewDate: string): MealAddFlowReturn {
   const [showSuccess, setShowSuccess] = useState(false)
   const [pendingFeedbackMeal, setPendingFeedbackMeal] = useState<Meal | null>(null)
 
-  const hasApiKey = !!profile?.claudeApiKey
+  const hasApiKey = profile?.aiProvider === 'gemini' ? !!profile?.geminiApiKey
+    : profile?.aiProvider === 'openai' ? !!profile?.openaiApiKey
+    : !!profile?.claudeApiKey
   const lang = profile?.language ?? 'ja'
 
   // ─── 音声入力（useSpeechInput に委譲） ────────────────────────
