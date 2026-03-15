@@ -38,6 +38,8 @@ export default function SettingsPage() {
   const [language, setLanguage] = useState<Language>('ja')
   const [gutCheckTiming, setGutCheckTiming] = useState<GutCheckTiming>('both')
   const [exporting, setExporting] = useState(false)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   useEffect(() => {
     if (profile) {
@@ -87,6 +89,17 @@ export default function SettingsPage() {
     setLanguage(lang)
     i18n.changeLanguage(lang)
     await save({ language: lang })
+  }
+
+  const handleReset = async () => {
+    setResetting(true)
+    try {
+      await db.delete()
+      window.location.reload()
+    } catch {
+      setResetting(false)
+      setShowResetConfirm(false)
+    }
   }
 
   const handleExport = async () => {
@@ -385,6 +398,49 @@ export default function SettingsPage() {
           {saved && <Check size={16} />}
           {saved ? t('settings.saved') : t('settings.save')}
         </button>
+
+        {/* 危険ゾーン */}
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+            {language === 'ja' ? 'リセット' : 'Reset'}
+          </h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
+            {!showResetConfirm ? (
+              <button
+                onClick={() => setShowResetConfirm(true)}
+                className="w-full py-3 rounded-xl border-2 border-red-200 text-red-500 font-medium text-sm"
+              >
+                {language === 'ja' ? '初期設定に戻る（全データ削除）' : 'Reset all data & restart setup'}
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-700 font-medium text-center">
+                  {language === 'ja' ? '本当に全データを削除しますか？' : 'Delete all data? This cannot be undone.'}
+                </p>
+                <p className="text-xs text-gray-400 text-center">
+                  {language === 'ja' ? '体重記録・食事記録・設定が全て消えます' : 'All weight logs, meals, and settings will be deleted.'}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowResetConfirm(false)}
+                    className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium"
+                  >
+                    {language === 'ja' ? 'キャンセル' : 'Cancel'}
+                  </button>
+                  <button
+                    onClick={handleReset}
+                    disabled={resetting}
+                    className="flex-1 py-3 rounded-xl bg-red-500 text-white text-sm font-medium disabled:opacity-50"
+                  >
+                    {resetting
+                      ? (language === 'ja' ? '削除中...' : 'Deleting...')
+                      : (language === 'ja' ? '削除する' : 'Delete all')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
 
         {/* 免責 */}
         <section>
