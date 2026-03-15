@@ -79,10 +79,10 @@ export default function OnboardingPage({ onComplete }: Props) {
         <AnimatePresence mode="wait">
           <m.div
             key={step}
-            initial={{ opacity: 0, x: 24 }}
+            initial={false}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -24 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
+            exit={{ opacity: 0, x: -16 }}
+            transition={{ duration: 0.15 }}
             className="flex-1 flex flex-col gap-5"
           >
             {/* Step 1: 言語 + 基本情報 */}

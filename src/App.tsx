@@ -97,7 +97,7 @@ export default function App() {
   }
 
   if (!profile) {
-    return <OnboardingPage onComplete={() => load()} />
+    return <OnboardingPage onComplete={() => { window.history.replaceState(null, '', '/'); load() }} />
   }
 
   return (
