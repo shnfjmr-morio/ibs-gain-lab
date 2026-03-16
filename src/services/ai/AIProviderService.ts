@@ -127,10 +127,10 @@ async function callGemini(
   profile: UserProfile,
   options?: { maxTokens?: number }
 ): Promise<AIResponse> {
-  const apiKey = profile.geminiApiKey
+  const apiKey = (profile.geminiApiKey ?? '').trim()
   if (!apiKey) throw new Error('Gemini API key is not set')
 
-  const model = profile.aiModel ?? 'gemini-2.0-flash'
+  const model = (profile.aiModel?.trim()) ?? 'gemini-1.5-flash'
 
   // system メッセージを分離し、user/assistant のみを contents に変換
   const systemMsg = messages.find(m => m.role === 'system')
@@ -171,6 +171,8 @@ async function callGemini(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+  }).catch((err: Error) => {
+    throw new Error(`ネットワークエラー: APIキー・モデル名を確認してください（詳細: ${err.message}）`)
   })
 
   if (!res.ok) {
