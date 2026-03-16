@@ -59,14 +59,15 @@ export function MealCard({ meal, onEdit }: MealCardProps) {
             )}
           </div>
           {/* descriptionとトグルボタン */}
-          <div
-            className={`flex items-start gap-1 ${canExpand ? 'cursor-pointer' : ''}`}
-            onClick={() => canExpand && setExpanded((v) => !v)}
-          >
-            <p className="text-[14px] font-medium text-gray-800 line-clamp-2 leading-relaxed flex-1">
-              {meal.description}
-            </p>
-            {canExpand && (
+          {canExpand ? (
+            <button
+              type="button"
+              className="flex items-start gap-1 w-full text-left"
+              onClick={() => setExpanded((v) => !v)}
+            >
+              <p className="text-[14px] font-medium text-gray-800 line-clamp-2 leading-relaxed flex-1">
+                {meal.description}
+              </p>
               <m.span
                 animate={{ rotate: expanded ? 180 : 0 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 25 }}
@@ -74,8 +75,12 @@ export function MealCard({ meal, onEdit }: MealCardProps) {
               >
                 <ChevronDown size={15} />
               </m.span>
-            )}
-          </div>
+            </button>
+          ) : (
+            <p className="text-[14px] font-medium text-gray-800 line-clamp-2 leading-relaxed">
+              {meal.description}
+            </p>
+          )}
           {/* 食材チップ (展開時) */}
           <AnimatePresence initial={false}>
             {expanded && (
