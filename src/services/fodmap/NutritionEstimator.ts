@@ -57,45 +57,135 @@ function sanitizeServingG(defaultG: number | undefined, caloriesPer100g: number)
   return defaultG
 }
 
+interface MatchedEntry {
+  entryId: string
+  matchedKeyword: string
+  matchStart: number
+  matchEnd: number
+  caloriesPer100g: number
+  proteinPer100g: number
+  fatPer100g: number
+  carbsPer100g: number
+  defaultServingG: number | undefined
+  safeServingG: number | undefined
+  userWeight: number | null
+}
+
+/**
+ * 最長マッチ優先（Longest Match Wins）でマッチエントリを絞り込む。
+ *
+ * 手順:
+ * 1. テキスト内の各マッチ位置について、同じ位置をカバーする他のマッチがあれば
+ *    最も長いキーワードのマッチだけを残す（部分文字列になっているものを除外）
+ * 2. 「キーワードAがキーワードBの部分文字列であり、かつAとBが同じ位置にマッチする」
+ *    場合にAのエントリを除外する
+ */
+function resolveByLongestMatch(candidates: MatchedEntry[]): MatchedEntry[] {
+  if (candidates.length === 0) return []
+
+  // 各candidateについて、「自分のマッチ範囲を完全に含む、より長いマッチが存在するか」を確認
+  const dominated = new Set<number>()
+
+  for (let i = 0; i < candidates.length; i++) {
+    for (let j = 0; j < candidates.length; j++) {
+      if (i === j) continue
+      const a = candidates[i]
+      const b = candidates[j]
+
+      // bのマッチ範囲がaのマッチ範囲を完全に包含し、かつbの方が長い場合、aは除外
+      if (
+        b.matchStart <= a.matchStart &&
+        b.matchEnd >= a.matchEnd &&
+        b.matchedKeyword.length > a.matchedKeyword.length
+      ) {
+        dominated.add(i)
+        break
+      }
+    }
+  }
+
+  return candidates.filter((_, i) => !dominated.has(i))
+}
+
 /**
  * 食事テキストからマッチした全食品の栄養素を合算して推定する。
  * 各食品ごとに重量を抽出し、なければ defaultServingG（またはフォールバック値）を使用。
+ *
+ * キーワード衝突対策: 最長マッチ優先（Longest Match Wins）を適用。
+ * 同一位置に複数エントリがマッチした場合、最もキーワードが長いエントリのみを採用する。
+ * 例: "ゆで卵" → boiled_egg（"ゆで卵"）のみ採用、raw_egg（"卵"）は除外
  */
 export function estimateNutrition(description: string): NutritionEstimate | null {
   if (!description.trim()) return null
 
   const text = description.toLowerCase()
+
+  // Step 1: 全マッチ候補を収集（エントリごとに最長マッチキーワードのみ1件）
+  const allCandidates: MatchedEntry[] = []
+
+  for (const entry of FODMAP_DB) {
+    let bestKw: string | null = null
+    let bestStart = -1
+    let bestEnd = -1
+
+    for (const kw of (entry.keywords ?? [])) {
+      const kwLower = kw.toLowerCase()
+      const idx = text.indexOf(kwLower)
+      if (idx === -1) continue
+
+      // 同エントリ内では最長キーワードを採用
+      if (bestKw === null || kw.length > bestKw.length) {
+        bestKw = kw
+        bestStart = idx
+        bestEnd = idx + kwLower.length
+      }
+    }
+
+    if (bestKw === null) continue
+
+    // マッチ周辺のグラム数を探す
+    const surrounding = text.slice(Math.max(0, bestStart - 5), bestEnd + 15)
+    const userWeight = extractWeightG(surrounding) ?? extractWeightG(text)
+
+    allCandidates.push({
+      entryId: entry.id,
+      matchedKeyword: bestKw,
+      matchStart: bestStart,
+      matchEnd: bestEnd,
+      caloriesPer100g: entry.caloriesPer100g,
+      proteinPer100g: entry.proteinPer100g,
+      fatPer100g: entry.fatPer100g,
+      carbsPer100g: entry.carbsPer100g,
+      defaultServingG: entry.defaultServingG,
+      safeServingG: entry.safeServingG,
+      userWeight,
+    })
+  }
+
+  // Step 2: 最長マッチ優先で絞り込み（部分文字列マッチを除外）
+  const resolved = resolveByLongestMatch(allCandidates)
+
+  // Step 3: 絞り込み後のエントリで栄養素を合算
   let totalCalories = 0
   let totalProtein = 0
   let totalFat = 0
   let totalCarbs = 0
-  let matched = 0
+  let matched = resolved.length
   let anyMeasured = false
 
-  for (const entry of FODMAP_DB) {
-    for (const kw of (entry.keywords ?? [])) {
-      if (!text.includes(kw.toLowerCase())) continue
+  for (const m of resolved) {
+    const rawDefault = m.defaultServingG ?? m.safeServingG
+    const sanitizedDefault = sanitizeServingG(rawDefault, m.caloriesPer100g)
+    const weightG = m.userWeight ?? sanitizedDefault
 
-      // このキーワード周辺の重量を探す（前後30文字）
-      const idx = text.indexOf(kw.toLowerCase())
-      const surrounding = text.slice(Math.max(0, idx - 5), idx + kw.length + 15)
-      const userWeight = extractWeightG(surrounding)
-        ?? extractWeightG(text)  // 全体からも探す
+    const ratio = weightG / 100
+    totalCalories += Math.round(m.caloriesPer100g * ratio)
+    totalProtein  += Math.round(m.proteinPer100g  * ratio * 10) / 10
+    totalFat      += Math.round(m.fatPer100g      * ratio * 10) / 10
+    totalCarbs    += Math.round(m.carbsPer100g    * ratio * 10) / 10
 
-      const rawDefault = entry.defaultServingG ?? entry.safeServingG
-      const sanitizedDefault = sanitizeServingG(rawDefault, entry.caloriesPer100g)
-      const weightG = userWeight ?? sanitizedDefault
-
-      const ratio = weightG / 100
-      totalCalories += Math.round(entry.caloriesPer100g * ratio)
-      totalProtein  += Math.round(entry.proteinPer100g  * ratio * 10) / 10
-      totalFat      += Math.round(entry.fatPer100g      * ratio * 10) / 10
-      totalCarbs    += Math.round(entry.carbsPer100g    * ratio * 10) / 10
-      matched++
-      if (userWeight != null) {
-        anyMeasured = true
-      }
-      break  // 同エントリで複数キーワードマッチしても1回だけ
+    if (m.userWeight != null) {
+      anyMeasured = true
     }
   }
 

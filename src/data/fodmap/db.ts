@@ -775,7 +775,6 @@ export const FODMAP_DB: FodmapEntry[] = [
     "keywords": [
       "ナン",
       "Naan",
-      "なん",
       "インドパン",
       "naan",
       "indian flatbread"
@@ -1237,7 +1236,6 @@ export const FODMAP_DB: FodmapEntry[] = [
       "鶏皮",
       "Chicken skin",
       "とりかわ",
-      "皮",
       "焼き鳥の皮",
       "chicken skin"
     ],
@@ -1576,7 +1574,6 @@ export const FODMAP_DB: FodmapEntry[] = [
     "keywords": [
       "牛タン",
       "Beef tongue",
-      "タン",
       "ぎゅうたん",
       "焼き肉タン",
       "beef tongue"
@@ -1982,7 +1979,6 @@ export const FODMAP_DB: FodmapEntry[] = [
       "マグロ（赤身）",
       "Tuna (lean)",
       "まぐろ",
-      "ツナ",
       "赤身",
       "刺身",
       "tuna",
@@ -2008,7 +2004,6 @@ export const FODMAP_DB: FodmapEntry[] = [
     "keywords": [
       "マグロ（トロ）",
       "Tuna (fatty)",
-      "トロ",
       "中トロ",
       "大トロ",
       "toro",
@@ -2182,14 +2177,12 @@ export const FODMAP_DB: FodmapEntry[] = [
     "nameJa": "タイ",
     "nameEn": "Sea bream",
     "keywords": [
-      "タイ",
+      "タイ（魚）",
       "Sea bream",
-      "たい",
       "鯛",
       "真鯛",
       "sea bream",
-      "red snapper",
-      "tai"
+      "red snapper"
     ],
     "fodmapLevel": "low",
     "ibsSafety": "safe",
@@ -2550,10 +2543,10 @@ export const FODMAP_DB: FodmapEntry[] = [
     "nameJa": "カキ",
     "nameEn": "Oyster",
     "keywords": [
-      "カキ",
-      "Oyster",
-      "かき",
       "牡蠣",
+      "Oyster",
+      "カキフライ",
+      "かき（貝）",
       "oyster"
     ],
     "fodmapLevel": "low",
@@ -5510,9 +5503,10 @@ export const FODMAP_DB: FodmapEntry[] = [
     "keywords": [
       "梨（和梨）",
       "Japanese pear (Nashi)",
-      "なし",
       "和梨",
-      "nashi"
+      "ようなし",
+      "nashi",
+      "japanese pear"
     ],
     "fodmapLevel": "high",
     "ibsSafety": "risky",
@@ -5531,8 +5525,8 @@ export const FODMAP_DB: FodmapEntry[] = [
     "keywords": [
       "桃",
       "Peach",
-      "もも",
       "白桃",
+      "もも（果物）",
       "peach"
     ],
     "fodmapLevel": "high",
@@ -5712,8 +5706,9 @@ export const FODMAP_DB: FodmapEntry[] = [
     "keywords": [
       "柿",
       "Persimmon",
-      "かき",
-      "カキ",
+      "かき（果物）",
+      "カキ（果物）",
+      "干し柿",
       "persimmon"
     ],
     "fodmapLevel": "high",
@@ -5940,7 +5935,6 @@ export const FODMAP_DB: FodmapEntry[] = [
       "米酢",
       "Rice vinegar",
       "酢",
-      "す",
       "穀物酢",
       "vinegar",
       "rice vinegar"
