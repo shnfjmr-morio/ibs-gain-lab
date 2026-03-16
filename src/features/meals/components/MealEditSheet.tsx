@@ -140,6 +140,7 @@ export function MealEditSheet({ editingMeal, onClose }: MealEditSheetProps) {
                 value={currentForm.date}
                 onChange={e => updateForm({ date: e.target.value })}
                 className={inputCls}
+                style={{ appearance: 'none', WebkitAppearance: 'none', colorScheme: 'light' }}
               />
             </div>
             <div>
@@ -149,6 +150,7 @@ export function MealEditSheet({ editingMeal, onClose }: MealEditSheetProps) {
                 value={currentForm.time}
                 onChange={e => updateForm({ time: e.target.value })}
                 className={inputCls}
+                style={{ appearance: 'none', WebkitAppearance: 'none', colorScheme: 'light' }}
               />
             </div>
           </div>
