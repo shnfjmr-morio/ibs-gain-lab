@@ -121,7 +121,7 @@
     "send": "Send",
     "new_session": "New Chat",
     "no_api_key": "API Key not set",
-    "no_api_key_desc": "Please enter your Claude API key in Settings",
+    "no_api_key_desc": "Go to settings to configure your AI provider and API key",
     "go_settings": "Go to Settings",
     "thinking": "Thinking...",
     "disclaimer": "AI advice is not medical advice",

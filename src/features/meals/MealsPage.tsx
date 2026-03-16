@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { m } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { Plus } from 'lucide-react'
@@ -21,6 +21,18 @@ export default function MealsPage() {
   const { t } = useTranslation()
   const today = toDateStr()
   const [viewDate, setViewDate] = useState(today)
+
+  // アプリをバックグラウンドから復帰した時に日付を同期
+  useEffect(() => {
+    const syncToday = () => {
+      if (!document.hidden) {
+        const newToday = toDateStr()
+        setViewDate(prev => prev < newToday ? newToday : prev)
+      }
+    }
+    document.addEventListener('visibilitychange', syncToday)
+    return () => document.removeEventListener('visibilitychange', syncToday)
+  }, [])
 
   const meals = useLiveQuery(
     () => db.meals.where('date').equals(viewDate).reverse().sortBy('time'),

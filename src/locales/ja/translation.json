@@ -121,7 +121,7 @@
     "send": "送信",
     "new_session": "新しい相談",
     "no_api_key": "APIキーが設定されていません",
-    "no_api_key_desc": "設定画面でClaude APIキーを入力してください",
+    "no_api_key_desc": "設定画面でAIプロバイダーとAPIキーを設定してください",
     "go_settings": "設定へ",
     "thinking": "考え中...",
     "disclaimer": "AIのアドバイスは医療行為ではありません",

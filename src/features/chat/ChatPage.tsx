@@ -138,6 +138,9 @@ export default function ChatPage() {
   const activeKey = profile?.aiProvider === 'gemini' ? profile?.geminiApiKey
     : profile?.aiProvider === 'openai' ? profile?.openaiApiKey
     : profile?.claudeApiKey
+  const providerName = profile?.aiProvider === 'openai' ? 'OpenAI'
+    : profile?.aiProvider === 'gemini' ? 'Gemini'
+    : 'Claude'
   if (!activeKey) {
     return (
       <AppShell title={t('chat.title')}>
@@ -146,6 +149,7 @@ export default function ChatPage() {
           <div className="glass-panel p-8 rounded-[2rem] shadow-sm border border-black/[0.03] flex flex-col items-center gap-4 relative z-10 w-full max-w-sm">
             <AlertCircle size={48} className="text-amber-400 drop-shadow-sm" />
             <p className="text-lg font-bold font-display text-gray-800 tracking-tight">{t('chat.no_api_key')}</p>
+            <p className="text-[13px] text-gray-400 leading-relaxed">{providerName} APIキーが必要です</p>
             <p className="text-[13px] text-gray-500 leading-relaxed">{t('chat.no_api_key_desc')}</p>
             <button
               onClick={() => navigate('/settings')}

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { m } from 'motion/react'
-import { Plus, TrendingUp, ChevronRight } from 'lucide-react'
+import { Plus, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import AppShell from '../../components/layout/AppShell'
 import { useProfileStore } from '../../stores/useProfileStore'
@@ -27,10 +27,22 @@ export default function HomePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { profile } = useProfileStore()
-  const today = toDateStr()
+  const [viewDate, setViewDate] = useState(toDateStr())
 
-  const dailyLog     = useLiveQuery(() => db.dailyLogs.get(today), [today])
-  const todayMeals   = useLiveQuery(() => db.meals.where('date').equals(today).reverse().sortBy('time'), [today])
+  // アプリをバックグラウンドから復帰した時に日付を同期
+  useEffect(() => {
+    const syncToday = () => {
+      if (!document.hidden) {
+        const newToday = toDateStr()
+        setViewDate(prev => prev < newToday ? newToday : prev)
+      }
+    }
+    document.addEventListener('visibilitychange', syncToday)
+    return () => document.removeEventListener('visibilitychange', syncToday)
+  }, [])
+
+  const dailyLog     = useLiveQuery(() => db.dailyLogs.get(viewDate), [viewDate])
+  const todayMeals   = useLiveQuery(() => db.meals.where('date').equals(viewDate).reverse().sortBy('time'), [viewDate])
   const latestWeight = useLiveQuery(() => db.weightLogs.orderBy('date').reverse().first(), [])
 
   const sparkWeightsRaw = useLiveQuery(
@@ -169,6 +181,36 @@ export default function HomePage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* 日付ナビゲーター */}
+        <div className="flex items-center justify-between px-6 pb-3">
+          <button
+            onClick={() => setViewDate(d => {
+              const dt = new Date(d); dt.setDate(dt.getDate() - 1); return dt.toISOString().split('T')[0]
+            })}
+            className="text-white/50 p-2"
+          >
+            <ChevronLeft size={20} />
+          </button>
+
+          <div className="text-center">
+            <p className="text-white/70 text-sm font-medium">
+              {viewDate === toDateStr() ? '今日' : viewDate}
+            </p>
+          </div>
+
+          <button
+            onClick={() => setViewDate(d => {
+              const dt = new Date(d); dt.setDate(dt.getDate() + 1)
+              const newDate = dt.toISOString().split('T')[0]
+              return newDate <= toDateStr() ? newDate : d
+            })}
+            disabled={viewDate >= toDateStr()}
+            className="text-white/50 p-2 disabled:opacity-20"
+          >
+            <ChevronRight size={20} />
+          </button>
         </div>
       </div>
 
