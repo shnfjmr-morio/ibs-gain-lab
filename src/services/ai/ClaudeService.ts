@@ -115,26 +115,22 @@ export async function sendMessage(
 ): Promise<void> {
   const provider = profile.aiProvider ?? 'claude'
 
-  const context = await buildContext(profile.language)
-  const systemPrompt = buildSystemPrompt(profile, context, profile.language)
-
   // Claude: ストリーミングを維持
   if (provider === 'claude') {
     if (!profile.claudeApiKey) {
       callbacks.onError(new Error('NO_API_KEY'))
       return
     }
-
-    const client = buildClient(profile.claudeApiKey)
-
     try {
+      const context = await buildContext(profile.language)
+      const systemPrompt = buildSystemPrompt(profile, context, profile.language)
+      const client = buildClient(profile.claudeApiKey)
       const stream = await client.messages.stream({
         model: profile.aiModel ?? MODEL,
         max_tokens: 1024,
         system: systemPrompt,
         messages,
       })
-
       for await (const chunk of stream) {
         if (
           chunk.type === 'content_block_delta' &&
@@ -152,11 +148,14 @@ export async function sendMessage(
 
   // OpenAI / Gemini: 非ストリームフォールバック
   try {
+    const context = await buildContext(profile.language)
+    const systemPrompt = buildSystemPrompt(profile, context, profile.language)
     const aiMessages = [
       { role: 'system' as const, content: systemPrompt },
       ...messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
     ]
     const response = await callAI(aiMessages, profile, { maxTokens: 1024 })
+    if (!response.content) throw new Error(`${response.provider} returned empty response`)
     callbacks.onToken(response.content)
     callbacks.onDone()
   } catch (err) {
