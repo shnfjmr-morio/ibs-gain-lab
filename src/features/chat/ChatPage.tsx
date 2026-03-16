@@ -97,9 +97,12 @@ export default function ChatPage() {
         setIsStreaming(false)
       },
       onError: async (err) => {
-        const errMsg = err.message === 'NO_API_KEY'
-          ? 'APIキーが設定されていません'
-          : 'エラーが発生しました'
+        let errMsg: string
+        if (err.message === 'NO_API_KEY') {
+          errMsg = 'APIキーが設定されていません'
+        } else {
+          errMsg = `エラーが発生しました: ${err.message}`
+        }
         await addMessage(sessionId!, 'assistant', errMsg)
         setStreamingContent('')
         setIsStreaming(false)

@@ -132,15 +132,30 @@ async function callGemini(
 
   const model = profile.aiModel ?? 'gemini-2.0-flash'
 
-  // Gemini は system を contents の先頭 user メッセージとして扱う
-  const contents = messages
+  // system メッセージを分離し、user/assistant のみを contents に変換
+  const systemMsg = messages.find(m => m.role === 'system')
+  const rawContents = messages
     .filter(m => m.role !== 'system')
     .map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }))
 
-  const systemMsg = messages.find(m => m.role === 'system')
+  // Gemini は contents が空だとエラーになるため、最低1件の user メッセージが必要
+  if (rawContents.length === 0) {
+    throw new Error('Gemini: at least one user message is required')
+  }
+
+  // 連続する同一ロールをマージ（Gemini は交互ロールを要求する）
+  const contents: { role: string; parts: { text: string }[] }[] = []
+  for (const turn of rawContents) {
+    const prev = contents[contents.length - 1]
+    if (prev && prev.role === turn.role) {
+      prev.parts.push(...turn.parts)
+    } else {
+      contents.push({ ...turn })
+    }
+  }
 
   const body: any = {
     contents,
@@ -159,13 +174,29 @@ async function callGemini(
   })
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(`Gemini API error ${res.status}: ${(err as any)?.error?.message ?? res.statusText}`)
+    const errBody = await res.json().catch(() => ({}))
+    const detail = (errBody as any)?.error?.message ?? res.statusText
+    throw new Error(`Gemini API error ${res.status}: ${detail}`)
   }
 
   const data = await res.json() as any
+  const candidate = data.candidates?.[0]
+  const finishReason: string = candidate?.finishReason ?? ''
+
+  // SAFETY や MAX_TOKENS 以外で候補がない場合はエラーとして扱う
+  if (!candidate) {
+    const blockReason = data.promptFeedback?.blockReason ?? 'unknown'
+    throw new Error(`Gemini: no candidates returned (blockReason: ${blockReason})`)
+  }
+
+  const text: string = candidate?.content?.parts?.[0]?.text ?? ''
+
+  if (!text && finishReason !== 'STOP' && finishReason !== 'MAX_TOKENS') {
+    throw new Error(`Gemini: empty response (finishReason: ${finishReason})`)
+  }
+
   return {
-    content: data.candidates?.[0]?.content?.parts?.[0]?.text ?? '',
+    content: text,
     provider: 'gemini',
     model,
   }
