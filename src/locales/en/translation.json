@@ -28,7 +28,9 @@
     "goal_remaining": "{{diff}}kg to goal",
     "calorie_alert": "{{remaining}} kcal remaining — add a snack",
     "ai_chat_title": "Ask AI",
-    "ai_chat_desc": "Meals, gut health, supplements and more"
+    "ai_chat_desc": "Meals, gut health, supplements and more",
+    "yesterday_review": "Yesterday's Review",
+    "meals_count": " meals"
   },
   "meals": {
     "title": "Meal Log",

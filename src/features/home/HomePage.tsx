@@ -7,7 +7,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import AppShell from '../../components/layout/AppShell'
 import { useProfileStore } from '../../stores/useProfileStore'
 import { db } from '../../db/schema'
-import { toDateStr } from '../../utils/date'
+import { toDateStr, subtractDays } from '../../utils/date'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { HeroWeightChart } from '../../components/ui/HeroWeightChart'
 import { getLast7DaysWeights } from '../../services/home/HomeStatsService'
@@ -41,9 +41,12 @@ export default function HomePage() {
     return () => document.removeEventListener('visibilitychange', syncToday)
   }, [])
 
+  const yesterday    = subtractDays(viewDate, 1)
   const dailyLog     = useLiveQuery(() => db.dailyLogs.get(viewDate), [viewDate])
   const todayMeals   = useLiveQuery(() => db.meals.where('date').equals(viewDate).reverse().sortBy('time'), [viewDate])
   const latestWeight = useLiveQuery(() => db.weightLogs.orderBy('date').reverse().first(), [])
+  const yesterdayMeals   = useLiveQuery(() => db.meals.where('date').equals(yesterday).sortBy('time'), [yesterday])
+  const yesterdayDailyLog = useLiveQuery(() => db.dailyLogs.get(yesterday), [yesterday])
 
   const sparkWeightsRaw = useLiveQuery(
     () => getLast7DaysWeights(),
@@ -57,6 +60,16 @@ export default function HomePage() {
 
   const ibsStatus = (latestWeight?.ibsStatus ?? 'stable') as IBSStatus
   const status    = STATUS_CONFIG[ibsStatus]
+
+  // 前日の腸フィードバック集計
+  const yesterdayGut = (yesterdayMeals ?? []).reduce(
+    (acc, m) => {
+      if (m.gutFeedback) acc[m.gutFeedback] = (acc[m.gutFeedback] ?? 0) + 1
+      return acc
+    },
+    {} as Partial<Record<GutFeedback, number>>
+  )
+  const hasYesterdayData = (yesterdayMeals?.length ?? 0) > 0
 
   // IBSステータス変更検知 → glow pulse + theme-color 更新
   const [statusChanged, setStatusChanged] = useState(false)
@@ -299,6 +312,37 @@ export default function HomePage() {
             </button>
           </div>
         </div>
+
+        {/* ── 前日の食事評価 ────────────────────────────── */}
+        {hasYesterdayData && (
+          <div className="bg-white/90 backdrop-blur-md rounded-2xl px-5 py-4 border border-black/[0.04] shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[13px] font-display font-bold text-gray-700 tracking-[0.06em] uppercase">
+                {t('home.yesterday_review')}
+              </h2>
+              <span className="text-[11px] text-gray-400">{yesterday}</span>
+            </div>
+            <div className="flex items-center gap-4">
+              {(['great', 'ok', 'bad'] as GutFeedback[]).map(fb => (
+                <div key={fb} className="flex items-center gap-1.5">
+                  <span className="text-lg leading-none">{GUT_EMOJI[fb]}</span>
+                  <span className="text-[14px] font-display font-bold text-gray-600">
+                    {yesterdayGut[fb] ?? 0}
+                  </span>
+                </div>
+              ))}
+              <div className="ml-auto text-right">
+                <p className="text-[14px] font-display font-bold text-gray-700 leading-none">
+                  {Math.round(yesterdayDailyLog?.totalCalories ?? 0).toLocaleString()}
+                  <span className="text-[10px] font-normal text-gray-400 ml-0.5">kcal</span>
+                </p>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  {Math.round((yesterdayDailyLog?.totalCalories ?? 0) / target * 100)}% {t('home.target')}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── AI相談ショートカット ──────────────────────── */}
         <m.button

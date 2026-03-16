@@ -28,7 +28,9 @@
     "goal_remaining": "目標まで +{{diff}}kg",
     "calorie_alert": "残り {{remaining}} kcal — 間食を追加しましょう",
     "ai_chat_title": "AIに相談する",
-    "ai_chat_desc": "外食メニュー・体調・サプリなど何でも"
+    "ai_chat_desc": "外食メニュー・体調・サプリなど何でも",
+    "yesterday_review": "前日の食事評価",
+    "meals_count": "食"
   },
   "meals": {
     "title": "食事記録",
