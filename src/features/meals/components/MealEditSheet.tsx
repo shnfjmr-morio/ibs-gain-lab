@@ -132,23 +132,23 @@ export function MealEditSheet({ editingMeal, onClose }: MealEditSheetProps) {
           </div>
 
           {/* 日付・時刻 */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="min-w-0">
+          <div className="flex gap-3">
+            <div className="flex-1">
               <label className="text-xs text-gray-500 mb-1 block">日付</label>
               <input
                 type="date"
                 value={currentForm.date}
                 onChange={e => updateForm({ date: e.target.value })}
-                className="w-full min-w-0 border border-gray-200 rounded-xl px-2 py-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 "
               />
             </div>
-            <div className="min-w-0">
+            <div className="w-[120px] shrink-0">
               <label className="text-xs text-gray-500 mb-1 block">時刻</label>
               <input
                 type="time"
                 value={currentForm.time}
                 onChange={e => updateForm({ time: e.target.value })}
-                className="w-full min-w-0 border border-gray-200 rounded-xl px-2 py-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 "
               />
             </div>
           </div>
