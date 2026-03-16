@@ -116,7 +116,7 @@
   },
   "chat": {
     "title": "AI Chat",
-    "subtitle": "Claude AI supports your IBS-safe weight gain",
+    "subtitle": "AI supports your IBS-safe weight gain",
     "placeholder": "Type a message...",
     "send": "Send",
     "new_session": "New Chat",
@@ -150,7 +150,7 @@
     "target_weight": "Target Weight (kg)",
     "target_calories": "Daily Calorie Goal (kcal)",
     "ibs_type": "IBS Type",
-    "api_key": "Claude API Key",
+    "api_key": "AI Provider Settings",
     "api_key_placeholder": "sk-ant-...",
     "api_key_help": "Get your API key from the Anthropic Console",
     "language": "Language",
@@ -195,7 +195,7 @@
     "step2_title": "About Your IBS",
     "step3_title": "Your Goals",
     "step4_title": "API Key Setup",
-    "step4_desc": "A Claude API key is required for AI features",
+    "step4_desc": "An API key is required for AI features",
     "skip_api": "Set up later",
     "ibs_type_desc": "Select your IBS type if diagnosed"
   },

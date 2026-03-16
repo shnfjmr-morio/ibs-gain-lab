@@ -30,6 +30,8 @@ export function MealEditSheet({ editingMeal, onClose }: MealEditSheetProps) {
     setEditForm({
       mealType:    editingMeal.type,
       description: editingMeal.description,
+      date:        editingMeal.date,
+      time:        editingMeal.time,
       calories:    editingMeal.totalCalories > 0 ? String(editingMeal.totalCalories) : '',
       protein:     editingMeal.totalProtein  > 0 ? String(editingMeal.totalProtein)  : '',
       fat:         editingMeal.totalFat      > 0 ? String(editingMeal.totalFat)      : '',
@@ -51,9 +53,12 @@ export function MealEditSheet({ editingMeal, onClose }: MealEditSheetProps) {
 
   const handleEditSave = async () => {
     if (!editingMeal || !currentForm) return
+    const originalDate = editingMeal.date
     await db.meals.update(editingMeal.id, {
       type:           currentForm.mealType,
       description:    currentForm.description.trim(),
+      date:           currentForm.date,
+      time:           currentForm.time,
       totalCalories:  parseInt(currentForm.calories)  || 0,
       totalProtein:   parseFloat(currentForm.protein) || 0,
       totalFat:       parseFloat(currentForm.fat)     || 0,
@@ -63,7 +68,11 @@ export function MealEditSheet({ editingMeal, onClose }: MealEditSheetProps) {
       gutFeedback:    currentForm.gutFeedback || undefined,
       notes:          currentForm.notes,
     })
-    await recalculateDailyLog(editingMeal.date)
+    // 日付が変更された場合は元の日と新しい日の両方を再計算
+    if (currentForm.date !== originalDate) {
+      await recalculateDailyLog(originalDate)
+    }
+    await recalculateDailyLog(currentForm.date)
     haptic('success')
     handleClose()
   }
@@ -120,6 +129,28 @@ export function MealEditSheet({ editingMeal, onClose }: MealEditSheetProps) {
               rows={3}
               className="w-full border border-black/[0.04] rounded-2xl px-4 py-3 text-[15px] resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/50 bg-white/80 shadow-inner transition-shadow leading-relaxed"
             />
+          </div>
+
+          {/* 日付・時刻 */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">日付</label>
+              <input
+                type="date"
+                value={currentForm.date}
+                onChange={e => updateForm({ date: e.target.value })}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">時刻</label>
+              <input
+                type="time"
+                value={currentForm.time}
+                onChange={e => updateForm({ time: e.target.value })}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              />
+            </div>
           </div>
 
           {/* 栄養素 */}

@@ -116,7 +116,7 @@
   },
   "chat": {
     "title": "AI相談",
-    "subtitle": "Claude AIがIBSと増量をサポートします",
+    "subtitle": "AIがIBSと増量をサポートします",
     "placeholder": "メッセージを入力...",
     "send": "送信",
     "new_session": "新しい相談",
@@ -150,7 +150,7 @@
     "target_weight": "目標体重 (kg)",
     "target_calories": "1日の目標カロリー (kcal)",
     "ibs_type": "IBSのタイプ",
-    "api_key": "Claude APIキー",
+    "api_key": "AIプロバイダー設定",
     "api_key_placeholder": "sk-ant-...",
     "api_key_help": "AnthropicのコンソールでAPIキーを取得してください",
     "language": "表示言語",
@@ -195,7 +195,7 @@
     "step2_title": "IBSについて",
     "step3_title": "目標設定",
     "step4_title": "APIキー設定",
-    "step4_desc": "AI相談機能を使うためにClaude APIキーが必要です",
+    "step4_desc": "AI相談機能を使うためにAPIキーが必要です",
     "skip_api": "あとで設定する",
     "ibs_type_desc": "診断されたIBSのタイプを選んでください"
   },

@@ -18,6 +18,8 @@ export interface MealDraft {
 export interface EditForm {
   mealType: MealType
   description: string
+  date: string
+  time: string
   calories: string
   protein: string
   fat: string

@@ -63,13 +63,21 @@ export interface MealAddFlowReturn {
   resetAdd: () => void
 }
 
+function detectMealType(): MealType {
+  const hour = new Date().getHours()
+  if (hour >= 5 && hour < 10) return 'breakfast'
+  if (hour >= 10 && hour < 15) return 'lunch'
+  if (hour >= 15 && hour < 18) return 'snack'
+  return 'dinner'
+}
+
 export function useMealAddFlow(viewDate: string): MealAddFlowReturn {
   const { profile } = useProfileStore()
 
   const [showAdd, setShowAdd]         = useState(false)
   const [addStep, setAddStep]         = useState<AddStep>('input')
   const [inputMode, setInputMode]     = useState<InputMode>('text')
-  const [mealType, setMealType]       = useState<MealType>('lunch')
+  const [mealType, setMealType]       = useState<MealType>(detectMealType())
   const [description, setDescription] = useState('')
   const [draft, setDraft]             = useState<MealDraft | null>(null)
   const [matchResults, setMatchResults] = useState<LookupResult[]>([])
@@ -111,15 +119,18 @@ export function useMealAddFlow(viewDate: string): MealAddFlowReturn {
       const now    = Date.now()
       const minAge = 15 * 60 * 1000
       const todayMeals = await db.meals.where('date').equals(toDateStr()).toArray()
-      const unanswered = todayMeals
-        .filter(m => !m.gutFeedback)
-        .filter(m => now - new Date(`${m.date}T${m.time}:00`).getTime() >= minAge)
-        .sort((a, b) => b.time.localeCompare(a.time))
-      if (unanswered.length > 0) {
-        setPendingFeedbackMeal(unanswered[0])
+      // 最新の食事だけを対象にする（古い未回答食事は無視）
+      const latestMeal = [...todayMeals].sort((a, b) => b.time.localeCompare(a.time))[0]
+      if (
+        latestMeal &&
+        !latestMeal.gutFeedback &&
+        now - new Date(`${latestMeal.date}T${latestMeal.time}:00`).getTime() >= minAge
+      ) {
+        setPendingFeedbackMeal(latestMeal)
         return
       }
     }
+    setMealType(detectMealType())
     setShowAdd(true)
   }
 
@@ -284,12 +295,14 @@ export function useMealAddFlow(viewDate: string): MealAddFlowReturn {
       }
     }
     setPendingFeedbackMeal(null)
+    setMealType(detectMealType())
     setShowAdd(true)
   }
 
   // スキップ: フィードバック未記録のままシートを開く
   const handlePendingFeedbackSkip = () => {
     setPendingFeedbackMeal(null)
+    setMealType(detectMealType())
     setShowAdd(true)
   }
 
