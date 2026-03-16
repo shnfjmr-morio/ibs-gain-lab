@@ -133,7 +133,7 @@ export function MealEditSheet({ editingMeal, onClose }: MealEditSheetProps) {
 
           {/* 日付・時刻 */}
           <div className="grid grid-cols-2 gap-2">
-            <div>
+            <div className="min-w-0 overflow-hidden">
               <label className="text-xs text-gray-500 mb-1 block">日付</label>
               <input
                 type="date"
@@ -143,7 +143,7 @@ export function MealEditSheet({ editingMeal, onClose }: MealEditSheetProps) {
                 style={{ appearance: 'none', WebkitAppearance: 'none', colorScheme: 'light' }}
               />
             </div>
-            <div>
+            <div className="min-w-0 overflow-hidden">
               <label className="text-xs text-gray-500 mb-1 block">時刻</label>
               <input
                 type="time"
