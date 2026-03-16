@@ -2760,11 +2760,7 @@ export const FODMAP_DB: FodmapEntry[] = [
     "keywords": [
       "生卵",
       "Raw egg",
-      "卵",
-      "たまご",
       "生たまご",
-      "玉子",
-      "egg",
       "raw egg"
     ],
     "fodmapLevel": "low",
@@ -2787,7 +2783,6 @@ export const FODMAP_DB: FodmapEntry[] = [
       "目玉焼き",
       "Fried egg",
       "めだまやき",
-      "egg",
       "fried egg"
     ],
     "fodmapLevel": "low",
@@ -2813,7 +2808,11 @@ export const FODMAP_DB: FodmapEntry[] = [
       "茹で卵",
       "味付け卵",
       "boiled egg",
-      "hard boiled egg"
+      "hard boiled egg",
+      "卵",
+      "たまご",
+      "玉子",
+      "egg"
     ],
     "fodmapLevel": "low",
     "ibsSafety": "safe",
@@ -2822,7 +2821,7 @@ export const FODMAP_DB: FodmapEntry[] = [
     "fatPer100g": 10.3,
     "carbsPer100g": 0.3,
     "fodmapCategory": "none",
-    "defaultServingG": 15,
+    "defaultServingG": 60,
     "safeServingG": 100
   },
   {
