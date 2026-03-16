@@ -1,6 +1,7 @@
-import { m } from 'motion/react'
+import { useState } from 'react'
+import { m, AnimatePresence } from 'motion/react'
 import { useTranslation } from 'react-i18next'
-import { Pencil } from 'lucide-react'
+import { Pencil, ChevronDown } from 'lucide-react'
 import { listItemVariants } from '../../../utils/motion'
 import { safetyColor, gutEmoji } from '../constants'
 import type { Meal } from '../../../types/entities'
@@ -10,8 +11,22 @@ interface MealCardProps {
   onEdit: (meal: Meal) => void
 }
 
+/** descriptionを食材チップ配列に分割する */
+function parseIngredients(description: string | null | undefined): string[] {
+  if (!description) return []
+  return description
+    .split(/[、，,・/ ]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+}
+
 export function MealCard({ meal, onEdit }: MealCardProps) {
   const { t } = useTranslation()
+  const [expanded, setExpanded] = useState(false)
+
+  const ingredients = parseIngredients(meal.description)
+  const canExpand = ingredients.length > 1
+
   return (
     <m.div
       key={meal.id}
@@ -43,9 +58,48 @@ export function MealCard({ meal, onEdit }: MealCardProps) {
               </span>
             )}
           </div>
-          <p className="text-[14px] font-medium text-gray-800 line-clamp-2 leading-relaxed">
-            {meal.description}
-          </p>
+          {/* descriptionとトグルボタン */}
+          <div
+            className={`flex items-start gap-1 ${canExpand ? 'cursor-pointer' : ''}`}
+            onClick={() => canExpand && setExpanded((v) => !v)}
+          >
+            <p className="text-[14px] font-medium text-gray-800 line-clamp-2 leading-relaxed flex-1">
+              {meal.description}
+            </p>
+            {canExpand && (
+              <m.span
+                animate={{ rotate: expanded ? 180 : 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                className="shrink-0 mt-0.5 text-gray-400"
+              >
+                <ChevronDown size={15} />
+              </m.span>
+            )}
+          </div>
+          {/* 食材チップ (展開時) */}
+          <AnimatePresence initial={false}>
+            {expanded && (
+              <m.div
+                key="chips"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                className="overflow-hidden"
+              >
+                <div className="flex flex-wrap gap-1.5 mt-2.5">
+                  {ingredients.map((ing, i) => (
+                    <span
+                      key={i}
+                      className="inline-block text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full leading-tight"
+                    >
+                      {ing}
+                    </span>
+                  ))}
+                </div>
+              </m.div>
+            )}
+          </AnimatePresence>
           {meal.notes && (
             <p className="text-[11px] text-gray-500 mt-1.5">{meal.notes}</p>
           )}
